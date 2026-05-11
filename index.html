@@ -10,7 +10,7 @@
 <link rel="icon" href="./favicon.ico" sizes="any" />
 <link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png" />
 <link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
-<link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
 <link rel="manifest" href="./manifest.json" />
 <link rel="preconnect" href="https://fonts.googleapis.com" />
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -503,6 +503,16 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     font-weight: 600;
+  }
+  .photo-cell .dim-badge {
+    position: absolute; top: 4px; left: 4px;
+    background: rgba(2, 6, 23, 0.85);
+    color: white;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: ui-monospace, monospace;
   }
 
   /* ----- Per-photo captions ----- */
@@ -1126,17 +1136,54 @@ function blobToDataUrl(blob) {
 // Compress an image File/Blob, preserve orientation. Cap longer edge at 2000px (print-friendly).
 async function compressImage(file) {
   const dataUrl = await blobToDataUrl(file);
+
+  // Load image with iOS-safe pattern: use decode() as primary, fall back to onload.
   const img = new Image();
-  await new Promise((res) => { img.onload = res; img.src = dataUrl; });
-  const maxEdge = 2000;
-  const longer = Math.max(img.width, img.height);
+  img.src = dataUrl;
+  try {
+    if (img.decode) {
+      await img.decode();
+    } else {
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        if (img.complete && img.naturalWidth > 0) resolve();
+      });
+    }
+  } catch (e) {
+    await new Promise((resolve) => {
+      if (img.complete && img.naturalWidth > 0) return resolve();
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }
+
+  // Use naturalWidth/Height — reliable on iOS Safari (img.width/height can return 0)
+  const naturalW = img.naturalWidth || img.width;
+  const naturalH = img.naturalHeight || img.height;
+
+  if (!naturalW || !naturalH) {
+    throw new Error('Could not read image dimensions');
+  }
+
+  // Cap at 1600px to stay under iOS Safari's canvas size limits
+  const maxEdge = 1600;
+  const longer = Math.max(naturalW, naturalH);
   const scale = Math.min(1, maxEdge / longer);
-  const w = Math.round(img.width * scale);
-  const h = Math.round(img.height * scale);
+  const w = Math.round(naturalW * scale);
+  const h = Math.round(naturalH * scale);
+
   const canvas = document.createElement('canvas');
-  canvas.width = w; canvas.height = h;
-  canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-  const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.88);
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+  if (!compressedDataUrl || compressedDataUrl.length < 100) {
+    throw new Error('Image compression failed');
+  }
+
   const blob = await (await fetch(compressedDataUrl)).blob();
   const orientation = h > w ? 'portrait' : 'landscape';
   return { blob, dataUrl: compressedDataUrl, orientation, width: w, height: h };
@@ -1508,13 +1555,17 @@ $('#dDesc').addEventListener('input', renderQuickPicks);
 
 function renderPhotoGrid() {
   const grid = $('#photoGrid');
-  grid.innerHTML = state.photos.map((p, i) => `
+  grid.innerHTML = state.photos.map((p, i) => {
+    const dims = (p.width && p.height) ? `${p.width}×${p.height}` : 'no dims';
+    return `
     <div class="photo-cell" data-idx="${i}">
       <img src="${p.dataUrl}" alt="" />
+      <div class="dim-badge">${dims}</div>
       ${p.annotated ? `<div class="annotated-badge">Marked</div>` : ''}
       <button class="remove" data-rm="${i}">×</button>
     </div>
-  `).join('') + `<div class="photo-cell add" id="addPhoto">+ Photo</div>`;
+  `;
+  }).join('') + `<div class="photo-cell add" id="addPhoto">+ Photo</div>`;
 
   $('#addPhoto').onclick = () => openPhotoChooser();
   $$('#photoGrid [data-rm]').forEach(b => {
@@ -1908,34 +1959,41 @@ async function buildPDF(defects, inspectorName) {
 
     // ----- Photo (if present) -----
     if (photo) {
-      // Use real photo dimensions if available; otherwise measure from the dataUrl.
-      // This is critical to preserve aspect ratio — without it, photos get stretched.
       let imgW = photo.width;
       let imgH = photo.height;
       if (!imgW || !imgH) {
         try {
-          const dims = await new Promise((resolve, reject) => {
-            const im = new Image();
-            im.onload = () => resolve({ w: im.naturalWidth, h: im.naturalHeight });
-            im.onerror = reject;
-            im.src = photo.dataUrl;
-          });
-          imgW = dims.w; imgH = dims.h;
-          // Persist back to the photo object so we only measure once
-          photo.width = imgW; photo.height = imgH;
+          const im = new Image();
+          im.src = photo.dataUrl;
+          if (im.decode) {
+            await im.decode();
+          } else {
+            await new Promise((resolve, reject) => {
+              im.onload = resolve;
+              im.onerror = reject;
+              if (im.complete && im.naturalWidth > 0) resolve();
+            });
+          }
+          imgW = im.naturalWidth || im.width;
+          imgH = im.naturalHeight || im.height;
+          if (imgW && imgH) {
+            photo.width = imgW;
+            photo.height = imgH;
+          }
         } catch (e) {
           // Last-resort fallback if measurement fails
-          imgW = 1500; imgH = 1500;
+        }
+        if (!imgW || !imgH) {
+          imgW = 1500;
+          imgH = 1500;
         }
       }
       const aspect = imgW / imgH;
       let drawW, drawH;
       if (availableW / availableH > aspect) {
-        // Photo is taller than the zone allows for its width — fit by height
         drawH = availableH;
         drawW = drawH * aspect;
       } else {
-        // Photo is wider — fit by width
         drawW = availableW;
         drawH = drawW / aspect;
       }
