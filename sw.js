@@ -1,5 +1,5 @@
 // AV Inspector Service Worker
-const CACHE_NAME = 'av-inspector-v4';
+const CACHE_NAME = 'av-inspector-v5';
 const APP_SHELL = [
   './',
   './index.html',

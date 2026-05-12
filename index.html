@@ -21,6 +21,7 @@
   :root {
     --bg: #f5f0e6;
     --bg-elev: #ffffff;
+    --cream: #f5f0e6;
     --ink: #020617;
     --ink-soft: #4a4538;
     --ink-mute: #8a8270;
@@ -754,9 +755,16 @@
     border-radius: 14px;
     font-size: 16px;
     font-weight: 600;
-    margin: 16px 0 24px;
+    margin: 16px 0 12px;
     display: flex; align-items: center; justify-content: center; gap: 10px;
     cursor: pointer;
+    font-family: inherit;
+  }
+  .cl-start-btn + .cl-start-btn {
+    background: white;
+    color: var(--ink);
+    margin-top: 0;
+    margin-bottom: 24px;
   }
   .cl-start-icon { font-size: 22px; font-weight: 300; }
 
@@ -1694,6 +1702,81 @@ const CHECKLIST_TEMPLATES = {
         ]
       }
     ]
+  },
+  'foundation': {
+    name: 'Foundation',
+    sections: [
+      {
+        title: 'Forms & Layout',
+        blurb: 'Verify before any reinforcement is placed.',
+        items: [
+          'Survey corners and lines match plan',
+          'Footing elevation correct per plan',
+          'Forms plumb, level, square',
+          'Forms braced to handle pour pressure',
+          'Dimensional accuracy verified (length, width, diagonals)',
+          'Vapor barrier installed under slab where required',
+          'Perimeter / under-slab insulation per plan',
+          'Step downs for grade transitions per plan',
+        ]
+      },
+      {
+        title: 'Reinforcement',
+        blurb: 'Inspector + structural engineer verification before pour.',
+        items: [
+          'Rebar size matches plan',
+          'Rebar spacing matches plan',
+          'Lap splices at least 40x bar diameter (40d)',
+          'Cover per IRC: 3" earth-formed, 2" formed sides, 1.5" slab',
+          'Corner bars at all corners',
+          'Tie spacing on columns/piers per plan',
+          'Dowels into footings sized and spaced per plan',
+          'Rebar clean, no oil or heavy rust',
+        ]
+      },
+      {
+        title: 'Pre-Pour Checks',
+        blurb: 'Final walk-through before concrete arrives.',
+        items: [
+          'AHJ inspection passed (rebar/cover)',
+          'Plumbing rough-in stub heights verified',
+          'Electrical conduit and grounding rod in place',
+          'Anchor bolts marked and ready per plan',
+          'Weather forecast: no rain 24 hrs after pour',
+          'Temperature: not below 40F or above 90F at pour',
+          'Pump truck access and setup confirmed',
+          'Concrete mix design matches spec on delivery ticket',
+          'Slump test equipment on site if required',
+        ]
+      },
+      {
+        title: 'During Pour & Finish',
+        blurb: 'Quality controls during placement and finishing.',
+        items: [
+          'Concrete consolidated (vibrated or rodded)',
+          'No cold joints — pour continuous per plan',
+          'Slump within spec on each truck',
+          'Test cylinders cast if required',
+          'Anchor bolts set true to plan after pour',
+          'Finish per spec (broom, trowel, exposed agg, etc.)',
+          'Control joints cut within 24 hrs of pour',
+        ]
+      },
+      {
+        title: 'Post-Pour & Cure',
+        blurb: 'Protect the concrete during curing.',
+        items: [
+          'Curing method applied (wet, blanket, or compound)',
+          'Concrete protected from rain for 24 hrs',
+          'Cold weather: blankets or heat applied if <40F',
+          'Hot weather: covered/wet down if >90F',
+          'Forms not stripped before minimum strength',
+          'No backfill before 7-day strength reached',
+          'No equipment loads on slab before strength reached',
+          'Cylinder tests at 7 and 28 days (if required)',
+        ]
+      }
+    ]
   }
 };
 
@@ -1723,9 +1806,14 @@ async function renderChecklist() {
       <h1 class="page-title">Checklists</h1>
       <p class="page-sub">Walk through items on site. Generate a report when done.</p>
 
-      <button class="cl-start-btn" id="clStartBtn">
+      <button class="cl-start-btn" data-template="site-prep">
         <span class="cl-start-icon">+</span>
         <span>Start New Site Prep Checklist</span>
+      </button>
+
+      <button class="cl-start-btn" data-template="foundation">
+        <span class="cl-start-icon">+</span>
+        <span>Start New Foundation Checklist</span>
       </button>
 
       <h2 class="cl-section-title">Saved checklists</h2>
@@ -1734,7 +1822,9 @@ async function renderChecklist() {
         : list.map(c => renderChecklistCard(c)).join('')}
     `;
 
-    $('#clStartBtn').onclick = () => startNewChecklist('site-prep');
+    $$('.cl-start-btn').forEach(btn => {
+      btn.onclick = () => startNewChecklist(btn.dataset.template);
+    });
     $$('.cl-card').forEach(card => {
       card.onclick = () => openChecklist(card.dataset.id);
     });
@@ -2159,6 +2249,9 @@ function hexToRGB(hex) {
 function setView(v) {
   state.view = v;
   $$('.botnav .nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  // FAB only makes sense on Punch List view (it adds a defect)
+  const fab = $('#fab');
+  if (fab) fab.style.display = (v === 'list') ? '' : 'none';
   if (v === 'list') renderList();
   if (v === 'checklist') renderChecklist();
   if (v === 'report') renderReport();
