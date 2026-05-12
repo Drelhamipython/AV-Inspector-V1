@@ -1,0 +1,2893 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no" />
+<meta name="theme-color" content="#020617" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="AV Inspector" />
+<link rel="icon" href="./favicon.ico" sizes="any" />
+<link rel="icon" type="image/png" sizes="16x16" href="./favicon-16.png" />
+<link rel="icon" type="image/png" sizes="32x32" href="./favicon-32.png" />
+<link rel="apple-touch-icon" sizes="180x180" href="./apple-touch-icon.png" />
+<link rel="manifest" href="./manifest.json" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" defer></script>
+<title>AV Inspector — Punch List</title>
+<style>
+  :root {
+    --bg: #f5f0e6;
+    --bg-elev: #ffffff;
+    --ink: #020617;
+    --ink-soft: #4a4538;
+    --ink-mute: #8a8270;
+    --line: #e4dccb;
+    --accent: #020617;
+    --danger: #b91c1c;
+    --warn: #c2410c;
+    --ok: #166534;
+    --critical: #991b1b;
+    --major: #c2410c;
+    --minor: #ca8a04;
+    --shadow: 0 1px 2px rgba(2,6,23,.04), 0 4px 16px rgba(2,6,23,.06);
+    --radius: 14px;
+    --radius-sm: 10px;
+    --radius-pill: 999px;
+    --serif: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    --sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0;
+    font-family: var(--sans);
+    font-size: 16px;
+    color: var(--ink);
+    background: var(--bg);
+    overscroll-behavior-y: contain;
+    -webkit-font-smoothing: antialiased;
+  }
+  body {
+    min-height: 100vh;
+    min-height: 100dvh;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* ----- Top bar ----- */
+  .topbar {
+    position: sticky; top: 0; z-index: 50;
+    background: var(--ink);
+    color: var(--bg);
+    padding: calc(env(safe-area-inset-top) + 14px) 20px 14px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+  }
+  .brand {
+    display: flex; align-items: center;
+    text-decoration: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .brand-logo {
+    height: 42px;
+    width: auto;
+    display: block;
+    /* Image already has black background matching the topbar */
+    border-radius: 4px;
+  }
+  .topbar-right { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+  .sync-badge {
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: var(--radius-pill);
+    padding: 5px 11px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .sync-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #4ade80;
+  }
+  .sync-dot.pending { background: #fbbf24; }
+  .sync-dot.offline { background: #94a3b8; }
+
+  /* ----- Page header ----- */
+  .page {
+    padding: 24px 20px 120px;
+    max-width: 720px;
+    margin: 0 auto;
+  }
+  .page-title {
+    font-family: var(--sans);
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.025em;
+    line-height: 1.05;
+    margin: 8px 0 6px;
+  }
+  .page-sub {
+    color: var(--ink-mute);
+    font-size: 14px;
+    margin: 0 0 20px;
+  }
+
+  /* ----- Project picker ----- */
+  .project-card {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    gap: 12px;
+    box-shadow: var(--shadow);
+  }
+  .project-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    margin-bottom: 4px;
+  }
+  .project-card .value {
+    font-family: var(--sans);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .project-card .value.empty { color: var(--ink-mute); font-style: italic; }
+  .icon-btn {
+    background: var(--ink); color: var(--bg);
+    border: none; border-radius: var(--radius-pill);
+    padding: 12px 20px;
+    font-size: 14px;
+    font-family: var(--sans);
+    cursor: pointer;
+    font-weight: 600;
+    min-height: 44px;
+  }
+
+  /* ----- Stats row ----- */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 22px;
+  }
+  .stat {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 12px 8px;
+    text-align: center;
+  }
+  .stat .num {
+    font-family: var(--sans);
+    font-size: 24px;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    line-height: 1;
+  }
+  .stat .lbl {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink-mute);
+    margin-top: 4px;
+  }
+
+  /* ----- Filter tabs ----- */
+  .tabs {
+    display: flex; gap: 6px;
+    margin-bottom: 14px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    border-radius: var(--radius-pill);
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 500;
+    font-family: var(--sans);
+    cursor: pointer;
+    white-space: nowrap;
+    min-height: 40px;
+  }
+  .tab.active {
+    background: var(--ink); color: var(--bg); border-color: var(--ink);
+  }
+
+  /* ----- Defect list ----- */
+  .defect-list { display: flex; flex-direction: column; gap: 10px; }
+  .defect {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+  }
+  .defect-head {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 6px;
+  }
+  .defect-title {
+    font-family: var(--sans);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.3;
+    flex: 1;
+  }
+  .defect-meta {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    font-size: 13px;
+    color: var(--ink-mute);
+  }
+  .defect-meta span { display: flex; align-items: center; gap: 4px; }
+  .defect-thumbs {
+    display: flex; gap: 6px; margin-top: 10px;
+  }
+  .thumb {
+    width: 56px; height: 56px;
+    border-radius: 8px;
+    background: var(--line);
+    object-fit: cover;
+    border: 1px solid var(--line);
+  }
+  .thumb-more {
+    width: 56px; height: 56px;
+    border-radius: 8px;
+    background: var(--bg);
+    border: 1px dashed var(--line);
+    display: grid; place-items: center;
+    font-size: 11px;
+    color: var(--ink-mute);
+  }
+  .voice-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    background: var(--bg);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-pill);
+    padding: 3px 8px;
+    font-size: 11px;
+    color: var(--ink-soft);
+  }
+  .status-pill {
+    display: inline-flex; align-items: center;
+    border-radius: var(--radius-pill);
+    padding: 5px 12px;
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+  }
+  .status-pill.open { background: #e0e7ff; color: #3730a3; }
+  .status-pill.in-progress { background: #fef3c7; color: #92400e; }
+  .status-pill.final-punch-list { background: #fce7f3; color: #9d174d; }
+  .status-pill.closed { background: #d1fae5; color: #065f46; }
+
+  .empty-state {
+    text-align: center;
+    padding: 50px 20px;
+    color: var(--ink-mute);
+  }
+  .empty-state .icon {
+    font-size: 40px;
+    margin-bottom: 12px;
+    opacity: 0.5;
+  }
+  .empty-state p { margin: 4px 0; font-size: 14px; }
+
+  /* ----- FAB ----- */
+  .fab {
+    position: fixed;
+    right: 18px;
+    bottom: calc(88px + env(safe-area-inset-bottom));
+    width: 64px; height: 64px;
+    border-radius: 50%;
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    box-shadow: 0 8px 24px rgba(2,6,23,0.3);
+    cursor: pointer;
+    z-index: 40;
+    display: grid; place-items: center;
+    font-size: 32px;
+    font-weight: 300;
+    line-height: 1;
+  }
+  .fab:active { transform: scale(0.95); }
+
+  /* ----- Bottom nav ----- */
+  .botnav {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--bg-elev);
+    border-top: 1px solid var(--line);
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    z-index: 30;
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .nav-item {
+    background: none; border: none;
+    padding: 16px 8px 14px;
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--ink-mute);
+    display: flex; flex-direction: column; align-items: center; gap: 5px;
+    cursor: pointer;
+    min-height: 56px;
+  }
+  .nav-item.active { color: var(--ink); font-weight: 600; }
+  .nav-icon { font-size: 22px; line-height: 1; }
+
+  /* ----- Modal / sheet ----- */
+  .sheet-back {
+    position: fixed; inset: 0;
+    background: rgba(2,6,23,0.5);
+    z-index: 100;
+    display: none;
+    align-items: flex-end;
+    backdrop-filter: blur(4px);
+  }
+  .sheet-back.show { display: flex; }
+  .sheet {
+    background: var(--bg);
+    width: 100%;
+    max-height: 92vh;
+    max-height: 92dvh;
+    border-radius: 24px 24px 0 0;
+    overflow-y: auto;
+    padding: 0 0 calc(24px + env(safe-area-inset-bottom));
+    animation: slideUp 0.3s cubic-bezier(0.4,0,0.2,1);
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--line);
+    border-radius: 2px;
+    margin: 10px auto 4px;
+  }
+  .sheet-head {
+    padding: 12px 20px 16px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--line);
+    position: sticky; top: 0;
+    background: var(--bg);
+    z-index: 2;
+  }
+  .sheet-title {
+    font-family: var(--sans);
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.015em;
+  }
+  .close-x {
+    background: none; border: none;
+    font-size: 30px;
+    color: var(--ink-mute);
+    cursor: pointer;
+    padding: 8px 12px;
+    line-height: 1;
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .sheet-body { padding: 20px; }
+
+  /* ----- Form ----- */
+  .field { margin-bottom: 20px; }
+  .field-label {
+    display: block;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-mute);
+    margin-bottom: 8px;
+    font-weight: 700;
+  }
+  .field-input,
+  .field-select,
+  .field-textarea {
+    width: 100%;
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 16px 14px;
+    font-family: var(--sans);
+    font-size: 16px;
+    color: var(--ink);
+    -webkit-appearance: none;
+    appearance: none;
+    min-height: 50px;
+  }
+  .field-textarea { resize: vertical; min-height: 110px; line-height: 1.5; }
+  .field-input:focus,
+  .field-select:focus,
+  .field-textarea:focus {
+    outline: none;
+    border-color: var(--ink);
+  }
+  .field-select {
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'><path fill='%238a8270' d='M6 8L0 0h12z'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 14px center;
+    padding-right: 36px;
+  }
+  .seg-btn {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 11px 8px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    color: var(--ink);
+    font-family: var(--sans);
+  }
+
+  .quick-pick {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-top: 10px;
+  }
+  .quick-pick button {
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--ink-soft);
+    border-radius: var(--radius-pill);
+    padding: 10px 16px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    font-family: var(--sans);
+    transition: all 0.15s ease;
+    min-height: 40px;
+  }
+  .quick-pick button.active {
+    background: var(--ink);
+    color: var(--bg);
+    border-color: var(--ink);
+  }
+  .quick-pick button:not(.active):active { background: var(--bg); }
+
+  /* ----- Photo capture ----- */
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-bottom: 6px;
+  }
+  .photo-cell {
+    aspect-ratio: 1;
+    border-radius: var(--radius-sm);
+    background: var(--line);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .photo-cell img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-cell.add {
+    background: var(--bg-elev);
+    border: 2px dashed var(--line);
+    display: grid; place-items: center;
+    color: var(--ink-mute);
+    font-size: 13px;
+  }
+  .photo-cell .remove {
+    position: absolute; top: 4px; right: 4px;
+    background: rgba(2,6,23,0.85);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 30px; height: 30px;
+    font-size: 18px;
+    cursor: pointer;
+    line-height: 1;
+  }
+  .photo-cell .annotated-badge {
+    position: absolute; bottom: 4px; left: 4px;
+    background: var(--ok);
+    color: white;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+  .photo-cell .dim-badge {
+    position: absolute; top: 4px; left: 4px;
+    background: rgba(2, 6, 23, 0.85);
+    color: white;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-weight: 600;
+    font-family: ui-monospace, monospace;
+  }
+
+  /* ----- Per-photo captions ----- */
+  .photo-captions { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+  .photo-caption-row {
+    display: flex; gap: 10px;
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 10px;
+    align-items: stretch;
+  }
+  .photo-caption-thumb {
+    width: 64px; height: 64px;
+    border-radius: 8px;
+    background: var(--line);
+    object-fit: cover;
+    flex-shrink: 0;
+  }
+  .photo-caption-body { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .photo-caption-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--ink-mute);
+    font-weight: 600;
+  }
+  .photo-caption-input {
+    width: 100%;
+    border: none;
+    background: transparent;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--ink);
+    padding: 4px 0;
+    resize: none;
+    line-height: 1.4;
+    min-height: 36px;
+  }
+  .photo-caption-input:focus { outline: none; }
+  .photo-caption-input::placeholder { color: var(--ink-mute); font-style: italic; }
+
+  /* ----- Photo source chooser ----- */
+  .photo-source-btn {
+    width: 100%;
+    display: flex; align-items: center; gap: 14px;
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+    margin-bottom: 10px;
+    cursor: pointer;
+    text-align: left;
+    font-family: var(--sans);
+    color: var(--ink);
+  }
+  .photo-source-btn:active { background: var(--bg); }
+  .photo-source-icon {
+    font-size: 28px;
+    width: 44px; height: 44px;
+    display: grid; place-items: center;
+    background: var(--bg);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .photo-source-label { display: flex; flex-direction: column; gap: 2px; }
+  .photo-source-label strong { font-size: 15px; font-weight: 600; }
+  .photo-source-label span { font-size: 12px; color: var(--ink-mute); }
+
+  /* ----- Voice recorder ----- */
+  .voice-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 12px 14px;
+  }
+  .rec-btn {
+    background: var(--ink);
+    color: var(--bg);
+    border: none;
+    border-radius: 50%;
+    width: 44px; height: 44px;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+    display: grid; place-items: center;
+  }
+  .rec-btn.recording {
+    background: var(--danger);
+    animation: pulse 1.2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(185,28,28,0.5); }
+    50% { box-shadow: 0 0 0 10px rgba(185,28,28,0); }
+  }
+  .voice-status {
+    flex: 1;
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  .voice-status .time {
+    font-family: var(--sans);
+    font-size: 18px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+  }
+  .voice-list {
+    margin-top: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .voice-item {
+    background: var(--bg-elev);
+    border: 1px solid var(--line);
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
+    display: flex; align-items: center; gap: 10px;
+    font-size: 12px;
+  }
+  .voice-item button {
+    background: var(--ink); color: var(--bg);
+    border: none; border-radius: 50%;
+    width: 28px; height: 28px;
+    cursor: pointer;
+    font-size: 11px;
+  }
+  .voice-item .del {
+    background: transparent; color: var(--ink-mute);
+    margin-left: auto;
+    font-size: 16px;
+  }
+
+  /* ----- Action buttons ----- */
+  .actions {
+    display: flex; gap: 10px;
+    padding: 16px 20px;
+    border-top: 1px solid var(--line);
+    background: var(--bg);
+    position: sticky; bottom: 0;
+  }
+  .btn {
+    flex: 1;
+    padding: 17px;
+    border-radius: var(--radius-pill);
+    border: none;
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    min-height: 52px;
+  }
+  .btn-primary { background: var(--ink); color: var(--bg); }
+  .btn-secondary { background: transparent; color: var(--ink); border: 1px solid var(--line); }
+  .btn-danger { background: transparent; color: var(--danger); border: 1px solid #fecaca; }
+
+  /* ----- Annotation canvas ----- */
+  .annotate-overlay {
+    position: fixed; inset: 0;
+    background: #000;
+    z-index: 200;
+    display: none;
+    flex-direction: column;
+  }
+  .annotate-overlay.show { display: flex; }
+  .annotate-bar {
+    background: rgba(0,0,0,0.85);
+    color: white;
+    padding: calc(env(safe-area-inset-top) + 12px) 16px 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .annotate-bar button {
+    background: rgba(255,255,255,0.1);
+    color: white;
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: var(--radius-pill);
+    padding: 8px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: var(--sans);
+  }
+  .annotate-bar button.active {
+    background: white; color: black;
+  }
+  .annotate-bar .spacer { flex: 1; }
+  .annotate-canvas-wrap {
+    flex: 1;
+    overflow: hidden;
+    display: grid; place-items: center;
+    background: #000;
+    position: relative;
+  }
+  #annotateCanvas {
+    max-width: 100%; max-height: 100%;
+    touch-action: none;
+  }
+  .color-dot {
+    width: 28px; height: 28px;
+    border-radius: 50%;
+    border: 2px solid rgba(255,255,255,0.25);
+    cursor: pointer;
+  }
+  .color-dot.active { border-color: white; transform: scale(1.15); }
+
+  /* ----- Toast ----- */
+  .toast {
+    position: fixed;
+    bottom: calc(100px + env(safe-area-inset-bottom));
+    left: 50%; transform: translateX(-50%);
+    background: var(--ink);
+    color: var(--bg);
+    padding: 12px 20px;
+    border-radius: var(--radius-pill);
+    font-size: 13px;
+    z-index: 300;
+    box-shadow: 0 8px 24px rgba(2,6,23,0.3);
+    opacity: 0;
+    transition: opacity 0.3s, transform 0.3s;
+    pointer-events: none;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(-4px); }
+
+  /* ----- Settings ----- */
+  .setting-row {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .setting-row:last-child { border-bottom: none; }
+  .setting-row label { display: block; font-size: 12px; color: var(--ink-mute); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.08em; }
+
+  /* ----- Checklist ----- */
+  .cl-start-btn {
+    width: 100%;
+    padding: 22px 16px;
+    border: 2px solid var(--ink);
+    background: var(--ink);
+    color: var(--cream);
+    border-radius: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    margin: 16px 0 24px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    cursor: pointer;
+  }
+  .cl-start-icon { font-size: 22px; font-weight: 300; }
+
+  .cl-section-title {
+    font-size: 13px;
+    color: var(--ink-mute);
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    margin: 16px 0 10px;
+    font-weight: 600;
+  }
+
+  .cl-card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px;
+    margin-bottom: 10px;
+    background: white;
+    cursor: pointer;
+  }
+  .cl-card-head {
+    display: flex; justify-content: space-between; align-items: flex-start;
+    margin-bottom: 8px;
+  }
+  .cl-card-title { font-size: 15px; font-weight: 600; color: var(--ink); }
+  .cl-card-meta { font-size: 11px; color: var(--ink-mute); margin-top: 2px; }
+  .cl-card-progress {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink);
+    background: var(--cream);
+    padding: 3px 10px;
+    border-radius: 12px;
+  }
+  .cl-card-stats { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .cl-stat {
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .cl-stat.bad { background: #FEE2E2; color: #991B1B; }
+  .cl-stat.warn { background: #FEF3C7; color: #92400E; }
+  .cl-stat.ok { background: #DCFCE7; color: #166534; }
+  .cl-card-actions { display: flex; gap: 8px; }
+  .cl-card-pdf, .cl-card-del {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid var(--line);
+    background: white;
+    border-radius: 8px;
+    font-size: 12px;
+    color: var(--ink-mute);
+    cursor: pointer;
+  }
+  .cl-card-pdf { color: var(--ink); font-weight: 600; }
+  .cl-card-del:hover { background: #FEE2E2; color: #991B1B; }
+
+  /* Active checklist view */
+  .cl-header {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 8px;
+  }
+  .cl-back {
+    background: none; border: none; color: var(--ink-mute);
+    font-size: 14px; padding: 6px 0; cursor: pointer;
+  }
+  .cl-progress-pill {
+    background: var(--ink); color: var(--cream);
+    padding: 5px 12px; border-radius: 14px;
+    font-size: 13px; font-weight: 600;
+  }
+
+  .cl-meta-form {
+    background: var(--cream);
+    border-radius: 12px;
+    padding: 14px;
+    margin: 16px 0 20px;
+  }
+  .cl-meta-row { display: flex; align-items: center; margin-bottom: 10px; }
+  .cl-meta-row:last-child { margin-bottom: 0; }
+  .cl-meta-row label {
+    width: 80px; font-size: 11px;
+    color: var(--ink-mute);
+    text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600;
+  }
+  .cl-meta-row input {
+    flex: 1; padding: 10px 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: white; font-size: 15px; color: var(--ink);
+    font-family: inherit;
+  }
+
+  .cl-section {
+    margin: 22px 0 10px;
+  }
+  .cl-section-h {
+    font-size: 17px; font-weight: 700; color: var(--ink);
+    margin: 0 0 4px; padding-bottom: 6px;
+    border-bottom: 2px solid var(--ink);
+  }
+  .cl-section-blurb { font-size: 12px; color: var(--ink-mute); margin: 4px 0 0; font-style: italic; }
+
+  .cl-item {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .cl-item-text {
+    font-size: 15px; color: var(--ink);
+    margin-bottom: 10px; line-height: 1.4;
+  }
+  .cl-item-status-row {
+    display: grid; grid-template-columns: 1fr 1fr;
+    gap: 6px; margin-bottom: 8px;
+  }
+  .cl-status-btn {
+    padding: 12px 8px;
+    border: 1.5px solid var(--line);
+    background: white;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--ink-mute);
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+    transition: all 0.1s;
+    font-family: inherit;
+  }
+  .cl-status-btn:active { transform: scale(0.97); }
+  .cl-status-btn.active { font-weight: 700; }
+  .cl-status-icon { font-size: 16px; line-height: 1; }
+  .cl-item-notes {
+    width: 100%;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 13px;
+    font-family: inherit;
+    min-height: 60px;
+    background: var(--cream);
+    color: var(--ink);
+    resize: vertical;
+    margin-top: 4px;
+  }
+
+  .cl-actions {
+    display: flex; flex-direction: column; gap: 8px;
+    margin: 24px 0 80px;
+  }
+  .cl-action {
+    padding: 14px;
+    border: 1.5px solid var(--line);
+    background: white;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--ink);
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .cl-action.primary {
+    background: var(--ink); color: var(--cream); border-color: var(--ink);
+  }
+  .cl-action.danger { color: #991B1B; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <a class="brand" href="./" aria-label="Amin Ventures · AV Inspector">
+    <img class="brand-logo" src="apple-touch-icon.png" alt="Amin Ventures" />
+  </a>
+  <div class="topbar-right">
+    <div class="sync-badge">
+      <span class="sync-dot" id="syncDot"></span>
+      <span id="syncText">Ready</span>
+    </div>
+  </div>
+</div>
+
+<main class="page" id="page">
+  <!-- Page content swapped by view -->
+</main>
+
+<button class="fab" id="fab" aria-label="Add defect">+</button>
+
+<nav class="botnav">
+  <button class="nav-item active" data-view="list">
+    <span class="nav-icon">⊞</span>
+    <span>Punch List</span>
+  </button>
+  <button class="nav-item" data-view="checklist">
+    <span class="nav-icon">✓</span>
+    <span>Checklist</span>
+  </button>
+  <button class="nav-item" data-view="report">
+    <span class="nav-icon">↗</span>
+    <span>Send Report</span>
+  </button>
+  <button class="nav-item" data-view="settings">
+    <span class="nav-icon">⚙</span>
+    <span>Settings</span>
+  </button>
+</nav>
+
+<!-- Defect form sheet -->
+<div class="sheet-back" id="defectSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title" id="defectSheetTitle">New Defect</div>
+      <button class="close-x" data-close>×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label class="field-label">Location</label>
+        <input type="text" class="field-input" id="dLocation" placeholder="Building A, 2nd Floor, Room 204" autocomplete="off" />
+      </div>
+
+      <div class="field">
+        <label class="field-label">Trade</label>
+        <select class="field-select" id="dTrade">
+          <option value="">Select trade…</option>
+          <option>Cabinetry / Millwork</option>
+          <option>Drywall</option>
+          <option>Electrical</option>
+          <option>Flooring</option>
+          <option>Foundation</option>
+          <option>Framing</option>
+          <option>HVAC</option>
+          <option>Insulation</option>
+          <option>Landscaping</option>
+          <option>Painting</option>
+          <option>Plumbing</option>
+          <option>Roofing</option>
+          <option>Siding</option>
+          <option>Tile</option>
+          <option>Windows / Doors</option>
+          <option>Other</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Status</label>
+        <select class="field-select" id="dStatus">
+          <option value="Open">Open</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Final Punch List">Final Punch List</option>
+          <option value="Closed">Closed</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Description</label>
+        <textarea class="field-textarea" id="dDesc" placeholder="Brief description of the defect"></textarea>
+        <div class="quick-pick" id="quickPick"></div>
+      </div>
+
+      <div class="field">
+        <label class="field-label">Responsible Party</label>
+        <input type="text" class="field-input" id="dResp" placeholder="Subcontractor or trade name" />
+      </div>
+
+      <div class="field">
+        <label class="field-label">Due Date</label>
+        <input type="date" class="field-input" id="dDue" />
+      </div>
+
+      <div class="field">
+        <label class="field-label">Photos</label>
+        <div class="photo-grid" id="photoGrid"></div>
+        <div class="photo-captions" id="photoCaptions"></div>
+        <input type="file" accept="image/*" capture="environment" id="photoInputCamera" hidden />
+        <input type="file" accept="image/*" id="photoInputGallery" hidden multiple />
+      </div>
+
+      <div class="field">
+        <label class="field-label">Voice Notes</label>
+        <div class="voice-row">
+          <button type="button" class="rec-btn" id="recBtn">●</button>
+          <div class="voice-status">
+            <div id="recStatus">Tap to record</div>
+            <div class="time" id="recTime" style="display:none;">00:00</div>
+          </div>
+        </div>
+        <div class="voice-list" id="voiceList"></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-danger" id="btnDelete" style="display:none;">Delete</button>
+      <button class="btn btn-secondary" data-close>Cancel</button>
+      <button class="btn btn-primary" id="btnSave">Save Defect</button>
+    </div>
+  </div>
+</div>
+
+<!-- Photo annotation overlay -->
+<div class="annotate-overlay" id="annotateOverlay">
+  <div class="annotate-bar">
+    <button id="annoCancel">Cancel</button>
+    <div class="spacer"></div>
+    <div class="color-dot active" data-color="#ef4444" style="background:#ef4444;"></div>
+    <div class="color-dot" data-color="#fbbf24" style="background:#fbbf24;"></div>
+    <div class="color-dot" data-color="#3b82f6" style="background:#3b82f6;"></div>
+    <div class="color-dot" data-color="#ffffff" style="background:#fff;"></div>
+    <div class="spacer"></div>
+    <button id="annoUndo">Undo</button>
+    <button id="annoSave" class="active">Save</button>
+  </div>
+  <div class="annotate-canvas-wrap">
+    <canvas id="annotateCanvas"></canvas>
+  </div>
+</div>
+
+<!-- Project picker sheet -->
+<div class="sheet-back" id="projectSheet">
+  <div class="sheet">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">Select Project</div>
+      <button class="close-x" data-close>×</button>
+    </div>
+    <div class="sheet-body">
+      <div class="field">
+        <label class="field-label">Project Name</label>
+        <input type="text" class="field-input" id="projectInput" placeholder="e.g. Alexander, Foundation Site, etc." />
+      </div>
+      <div class="field">
+        <label class="field-label">Recent Projects</label>
+        <div id="recentProjects" style="display:flex; flex-direction:column; gap:6px;"></div>
+      </div>
+    </div>
+    <div class="actions">
+      <button class="btn btn-secondary" data-close>Cancel</button>
+      <button class="btn btn-primary" id="btnSetProject">Use Project</button>
+    </div>
+  </div>
+</div>
+
+<!-- Photo source chooser sheet -->
+<div class="sheet-back" id="photoChooser">
+  <div class="sheet" style="border-radius: 24px 24px 0 0; max-height: 50vh;">
+    <div class="sheet-handle"></div>
+    <div class="sheet-head">
+      <div class="sheet-title">Add Photo</div>
+      <button class="close-x" data-close>×</button>
+    </div>
+    <div class="sheet-body">
+      <button class="photo-source-btn" id="chooseCamera">
+        <span class="photo-source-icon">📷</span>
+        <span class="photo-source-label">
+          <strong>Take Photo</strong>
+          <span>Open camera</span>
+        </span>
+      </button>
+      <button class="photo-source-btn" id="chooseGallery">
+        <span class="photo-source-icon">🖼</span>
+        <span class="photo-source-label">
+          <strong>Choose from Gallery</strong>
+          <span>Pick existing photo(s)</span>
+        </span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+/* =========================================================
+   AV Inspector — Punch List PWA
+   Single-file app. IndexedDB for storage. jsPDF for export.
+   ========================================================= */
+
+// ---------- IndexedDB tiny wrapper ----------
+// Embedded Amin Ventures logo (300x300 JPEG, ~5.7KB) — used in PDF report headers.
+const AV_LOGO_DATA_URL = 'data:image/jpeg;base64,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';
+
+const DB_NAME = 'av-inspector';
+const DB_VER = 2;
+let _db = null;
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    if (_db) return resolve(_db);
+    const req = indexedDB.open(DB_NAME, DB_VER);
+    req.onupgradeneeded = (e) => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('defects')) {
+        const store = db.createObjectStore('defects', { keyPath: 'id' });
+        store.createIndex('project', 'project', { unique: false });
+        store.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+      if (!db.objectStoreNames.contains('settings')) {
+        db.createObjectStore('settings', { keyPath: 'key' });
+      }
+      if (!db.objectStoreNames.contains('checklists')) {
+        const store = db.createObjectStore('checklists', { keyPath: 'id' });
+        store.createIndex('project', 'project', { unique: false });
+        store.createIndex('createdAt', 'createdAt', { unique: false });
+      }
+    };
+    req.onsuccess = () => { _db = req.result; resolve(_db); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function dbPut(store, value) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).put(value);
+    tx.oncomplete = () => resolve(value);
+    tx.onerror = () => reject(tx.error);
+  });
+}
+async function dbGet(store, key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).get(key);
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbAll(store) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readonly');
+    const req = tx.objectStore(store).getAll();
+    req.onsuccess = () => resolve(req.result || []);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function dbDelete(store, key) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(store, 'readwrite');
+    tx.objectStore(store).delete(key);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error);
+  });
+}
+
+// ---------- Settings ----------
+async function getSetting(key, def) {
+  const r = await dbGet('settings', key);
+  return r ? r.value : def;
+}
+async function setSetting(key, value) {
+  return dbPut('settings', { key, value });
+}
+
+// ---------- App state ----------
+const state = {
+  view: 'list',
+  filter: 'all',
+  project: null,
+  editingId: null,
+  photos: [],         // {id, blob, dataUrl, annotated}
+  voices: [],         // {id, blob, dataUrl, durationSec}
+  rec: { mediaRec: null, chunks: [], startedAt: 0, timer: null },
+  annotate: { ctx: null, color: '#ef4444', strokes: [], current: null, photoIdx: -1, baseImg: null }
+};
+
+// Quick-pick library — keyed by trade. Inspector picks trade -> chips swap.
+const QUICK_PICKS_BY_TRADE = {
+  'Foundation': [
+    'Crack in slab', 'Settling visible', 'Water intrusion', 'Exposed rebar',
+    'Honeycomb defect', 'Anchor bolt missing', 'Form tie not patched', 'Slab not level'
+  ],
+  'Framing': [
+    'Stud out of plumb', 'Joist deflection', 'Missing hurricane tie', 'Header undersized',
+    'Sheathing gap excessive', 'Nailing pattern wrong', 'Squeak in floor', 'Beam notched improperly'
+  ],
+  'Electrical': [
+    'Outlet not flush', 'Loose receptacle', 'Missing cover plate', 'Wrong gauge wire',
+    'GFCI not working', 'Open junction box', 'Wires not in conduit', 'Fixture loose',
+    'Switch installed upside down', 'Panel breaker mislabeled'
+  ],
+  'Plumbing': [
+    'Leak under sink', 'Slow drain', 'P-trap missing', 'Faucet drips',
+    'Improper venting', 'Hot/cold reversed', 'Water hammer', 'Shutoff valve missing',
+    'Toilet rocks', 'Caulking at base failed'
+  ],
+  'HVAC': [
+    'Vent not sealed', 'Wrong size duct', 'Filter missing', 'Condensate line clogged',
+    'Thermostat wired wrong', 'Return air undersized', 'Damper stuck', 'Refrigerant leak'
+  ],
+  'Drywall': [
+    'Crack visible', 'Nail pop', 'Tape lifting', 'Corner bead damaged',
+    'Texture mismatch', 'Seam visible', 'Hole / gouge', 'Sanding marks visible'
+  ],
+  'Flooring': [
+    'Floor not level', 'Squeak under foot', 'Plank gap', 'Transition strip missing',
+    'Scratched finish', 'Underlayment exposed', 'Color mismatch', 'Lippage between planks'
+  ],
+  'Painting': [
+    'Paint touch-up needed', 'Drip run visible', 'Color mismatch', 'Cut line wavy',
+    'Roller marks', 'Ceiling overspray', 'Caulk paint cracking', 'Primer showing through'
+  ],
+  'Roofing': [
+    'Missing shingle', 'Flashing not sealed', 'Drip edge gap', 'Vent boot cracked',
+    'Valley not woven correctly', 'Nail pop on ridge', 'Gutter pitch wrong', 'Ice & water shield exposed'
+  ],
+  'Siding': [
+    'Panel loose', 'Caulk failed at joint', 'Color mismatch', 'Trim gap',
+    'Water staining', 'J-channel improper', 'Nail visible', 'Panel buckled',
+    'Corner post crooked', 'Soffit gap'
+  ],
+  'Windows / Doors': [
+    'Door rubs frame', 'Window seal damaged', 'Latch misaligned', 'Weather strip missing',
+    'Glass cracked', 'Lock not engaging', 'Threshold gap', 'Caulking incomplete',
+    'Frame out of square'
+  ],
+  'Cabinetry / Millwork': [
+    'Door not aligned', 'Drawer slide failed', 'Hinge loose', 'Toe kick gap',
+    'Crown molding gap', 'Scratched finish', 'Soft-close not working', 'Filler strip missing'
+  ],
+  'Tile': [
+    'Tile chipped', 'Grout missing', 'Lippage excessive', 'Cut edge rough',
+    'Color variation', 'Crack in tile', 'Sealer missing', 'Pattern misaligned'
+  ],
+  'Insulation': [
+    'Gap at top plate', 'Compression visible', 'Vapor barrier torn', 'R-value below spec',
+    'Settled in wall cavity', 'Missing at rim joist'
+  ],
+  'Landscaping': [
+    'Grading slope wrong', 'Sod dying', 'Mulch missing', 'Tree stake left in',
+    'Drainage pooling', 'Sprinkler head broken'
+  ],
+  'Other': [
+    'General touch-up', 'Cleaning needed', 'Final adjustment', 'Documentation missing'
+  ]
+};
+// When no trade selected, show a small generic set
+const QUICK_PICKS_DEFAULT = [
+  'Paint touch-up needed', 'Caulking incomplete', 'Scratched finish',
+  'Trim gap', 'Light fixture loose', 'Cleaning needed'
+];
+
+// ---------- Helpers ----------
+const $ = (sel, root = document) => root.querySelector(sel);
+const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const fmtDate = (iso) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+function toast(msg, ms = 2000) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), ms);
+}
+
+function blobToDataUrl(blob) {
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.readAsDataURL(blob);
+  });
+}
+
+// Compress an image File/Blob, preserve orientation. Cap longer edge at 2000px (print-friendly).
+async function compressImage(file) {
+  const dataUrl = await blobToDataUrl(file);
+
+  // Load image with iOS-safe pattern: use decode() as primary, fall back to onload.
+  const img = new Image();
+  img.src = dataUrl;
+  try {
+    if (img.decode) {
+      await img.decode();
+    } else {
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        if (img.complete && img.naturalWidth > 0) resolve();
+      });
+    }
+  } catch (e) {
+    await new Promise((resolve) => {
+      if (img.complete && img.naturalWidth > 0) return resolve();
+      img.onload = resolve;
+      img.onerror = resolve;
+    });
+  }
+
+  // Use naturalWidth/Height — reliable on iOS Safari (img.width/height can return 0)
+  const naturalW = img.naturalWidth || img.width;
+  const naturalH = img.naturalHeight || img.height;
+
+  if (!naturalW || !naturalH) {
+    throw new Error('Could not read image dimensions');
+  }
+
+  // Cap at 1600px to stay under iOS Safari's canvas size limits
+  const maxEdge = 1600;
+  const longer = Math.max(naturalW, naturalH);
+  const scale = Math.min(1, maxEdge / longer);
+  const w = Math.round(naturalW * scale);
+  const h = Math.round(naturalH * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.drawImage(img, 0, 0, w, h);
+  const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+  if (!compressedDataUrl || compressedDataUrl.length < 100) {
+    throw new Error('Image compression failed');
+  }
+
+  const blob = await (await fetch(compressedDataUrl)).blob();
+  const orientation = h > w ? 'portrait' : 'landscape';
+  return { blob, dataUrl: compressedDataUrl, orientation, width: w, height: h };
+}
+
+// ---------- GPS ----------
+function getGPS() {
+  return new Promise((resolve) => {
+    if (!navigator.geolocation) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({
+        lat: pos.coords.latitude,
+        lng: pos.coords.longitude,
+        accuracy: pos.coords.accuracy
+      }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 5000, maximumAge: 30000 }
+    );
+  });
+}
+
+// ---------- Sync indicator ----------
+function updateSync() {
+  const dot = $('#syncDot'); const txt = $('#syncText');
+  if (!navigator.onLine) {
+    dot.className = 'sync-dot offline';
+    txt.textContent = 'Offline';
+  } else {
+    dot.className = 'sync-dot';
+    txt.textContent = 'Ready';
+  }
+}
+window.addEventListener('online', updateSync);
+window.addEventListener('offline', updateSync);
+
+// ---------- Views ----------
+async function renderList() {
+  const all = await dbAll('defects');
+  const list = state.project ? all.filter(d => d.project === state.project) : all;
+
+  const STATUSES = ['Open', 'In Progress', 'Final Punch List', 'Closed'];
+
+  const filtered = state.filter === 'all' ? list :
+    STATUSES.includes(state.filter) ? list.filter(d => (d.status || 'Open') === state.filter) :
+    list;
+
+  const counts = {
+    total: list.length,
+    open: list.filter(d => (d.status || 'Open') === 'Open').length,
+    inProgress: list.filter(d => d.status === 'In Progress').length,
+    finalPL: list.filter(d => d.status === 'Final Punch List').length,
+    closed: list.filter(d => d.status === 'Closed').length
+  };
+
+  const projectName = state.project || 'No project selected';
+
+  $('#page').innerHTML = `
+    <div class="project-card">
+      <div>
+        <div class="label">Active Project</div>
+        <div class="value ${state.project ? '' : 'empty'}">${projectName}</div>
+      </div>
+      <button class="icon-btn" id="changeProject">Change</button>
+    </div>
+
+    <h1 class="page-title">Punch List</h1>
+    <p class="page-sub">Capture defects on-site. Generate report when ready.</p>
+
+    <div class="stats">
+      <div class="stat"><div class="num">${counts.total}</div><div class="lbl">Total</div></div>
+      <div class="stat"><div class="num">${counts.open}</div><div class="lbl">Open</div></div>
+      <div class="stat"><div class="num">${counts.finalPL}</div><div class="lbl">Final PL</div></div>
+      <div class="stat"><div class="num">${counts.closed}</div><div class="lbl">Closed</div></div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab ${state.filter === 'all' ? 'active' : ''}" data-filter="all">All</button>
+      <button class="tab ${state.filter === 'Open' ? 'active' : ''}" data-filter="Open">Open</button>
+      <button class="tab ${state.filter === 'In Progress' ? 'active' : ''}" data-filter="In Progress">In Progress</button>
+      <button class="tab ${state.filter === 'Final Punch List' ? 'active' : ''}" data-filter="Final Punch List">Final PL</button>
+      <button class="tab ${state.filter === 'Closed' ? 'active' : ''}" data-filter="Closed">Closed</button>
+    </div>
+
+    ${filtered.length === 0 ? `
+      <div class="empty-state">
+        <div class="icon">○</div>
+        <p>No defects yet.</p>
+        <p style="font-size: 12px;">Tap the + button to add the first one.</p>
+      </div>
+    ` : `
+      <div class="defect-list">
+        ${filtered.map(renderDefectCard).join('')}
+      </div>
+    `}
+  `;
+
+  $$('#page .tab').forEach(t => t.onclick = () => { state.filter = t.dataset.filter; renderList(); });
+  $('#changeProject').onclick = openProjectPicker;
+  $$('#page .defect').forEach(el => {
+    el.onclick = () => openDefectForm(el.dataset.id);
+  });
+}
+
+function renderDefectCard(d) {
+  const photoCount = (d.photos || []).length;
+  const voiceCount = (d.voices || []).length;
+  const thumbs = (d.photos || []).slice(0, 3).map(p =>
+    `<img class="thumb" src="${p.dataUrl}" alt="" />`
+  ).join('');
+  const more = photoCount > 3 ? `<div class="thumb-more">+${photoCount - 3}</div>` : '';
+  const status = d.status || 'Open';
+  const statusClass = status.toLowerCase().replace(/\s+/g, '-');
+
+  return `
+    <div class="defect" data-id="${d.id}">
+      <div class="defect-head">
+        <div class="defect-title">${escapeHtml(d.description || 'Untitled')}</div>
+        <span class="status-pill ${statusClass}">${status}</span>
+      </div>
+      <div class="defect-meta">
+        ${d.location ? `<span>📍 ${escapeHtml(d.location)}</span>` : ''}
+        ${d.trade ? `<span>🔧 ${escapeHtml(d.trade)}</span>` : ''}
+        <span>${fmtDate(d.createdAt)}</span>
+        ${voiceCount > 0 ? `<span class="voice-pill">🎙 ${voiceCount}</span>` : ''}
+      </div>
+      ${photoCount > 0 ? `<div class="defect-thumbs">${thumbs}${more}</div>` : ''}
+    </div>
+  `;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+  }[c]));
+}
+
+async function renderReport() {
+  const all = await dbAll('defects');
+  const list = state.project ? all.filter(d => d.project === state.project) : all;
+  const email = await getSetting('email', 'hosein@amin-ventures.com');
+  const inspector = await getSetting('inspector', '');
+
+  $('#page').innerHTML = `
+    <h1 class="page-title">Send Report</h1>
+    <p class="page-sub">Generate a PDF and email it.</p>
+
+    <div class="project-card">
+      <div>
+        <div class="label">Project</div>
+        <div class="value ${state.project ? '' : 'empty'}">${state.project || 'No project selected'}</div>
+      </div>
+    </div>
+
+    <div class="stats" style="margin-bottom: 22px;">
+      <div class="stat"><div class="num">${list.length}</div><div class="lbl">Total</div></div>
+      <div class="stat"><div class="num">${list.filter(d => (d.status || 'Open') === 'Open').length}</div><div class="lbl">Open</div></div>
+      <div class="stat"><div class="num">${list.filter(d => d.status === 'Final Punch List').length}</div><div class="lbl">Final PL</div></div>
+      <div class="stat"><div class="num">${list.filter(d => d.status === 'Closed').length}</div><div class="lbl">Closed</div></div>
+    </div>
+
+    <div class="field">
+      <label class="field-label">Inspector Name</label>
+      <input type="text" class="field-input" id="inspectorIn" value="${escapeHtml(inspector)}" placeholder="Your name" />
+    </div>
+    <div class="field">
+      <label class="field-label">Send To</label>
+      <input type="email" class="field-input" id="emailIn" value="${escapeHtml(email)}" />
+    </div>
+
+    <button class="btn btn-primary" id="btnGenPDF" style="width:100%; margin-bottom:10px;">Generate PDF</button>
+    <button class="btn btn-secondary" id="btnEmail" style="width:100%; margin-bottom:10px;" ${list.length === 0 ? 'disabled' : ''}>Email Report</button>
+    <p style="font-size: 12px; color: var(--ink-mute); text-align: center; margin-top: 16px;">
+      The PDF is generated on this device. Tap "Email Report" to attach it and open your mail app.
+    </p>
+  `;
+
+  $('#btnGenPDF').onclick = async () => {
+    const inspectorName = $('#inspectorIn').value.trim();
+    if (!inspectorName) {
+      if (!confirm('Inspector name is empty. Generate the report anyway?\n\nTip: enter your name once and it will be saved for future reports.')) {
+        $('#inspectorIn').focus();
+        return;
+      }
+    }
+    await setSetting('inspector', inspectorName);
+    if (list.length === 0) { toast('No defects to report'); return; }
+    toast('Generating PDF…');
+    const pdf = await buildPDF(list, inspectorName);
+    pdf.save(`punchlist-${(state.project || 'report').replace(/\s+/g,'_')}-${Date.now()}.pdf`);
+  };
+  $('#btnEmail').onclick = async () => {
+    const inspectorName = $('#inspectorIn').value.trim();
+    const recipient = $('#emailIn').value.trim();
+    if (!inspectorName) {
+      if (!confirm('Inspector name is empty. Send the report anyway?\n\nTip: enter your name once and it will be saved for future reports.')) {
+        $('#inspectorIn').focus();
+        return;
+      }
+    }
+    await setSetting('inspector', inspectorName);
+    await setSetting('email', recipient);
+    if (list.length === 0) { toast('No defects to report'); return; }
+    await sendEmail(list, inspectorName, recipient);
+  };
+}
+
+async function renderSettings() {
+  const email = await getSetting('email', 'hosein@amin-ventures.com');
+  const inspector = await getSetting('inspector', '');
+  const all = await dbAll('defects');
+
+  $('#page').innerHTML = `
+    <h1 class="page-title">Settings</h1>
+    <p class="page-sub">Configure your inspector profile and report destination.</p>
+
+    <div style="background: var(--bg-elev); border: 1px solid var(--line); border-radius: var(--radius); padding: 6px 18px; margin-bottom: 18px;">
+      <div class="setting-row">
+        <label>Inspector Name</label>
+        <input type="text" class="field-input" id="setInspector" value="${escapeHtml(inspector)}" />
+      </div>
+      <div class="setting-row">
+        <label>Default Report Email</label>
+        <input type="email" class="field-input" id="setEmail" value="${escapeHtml(email)}" />
+      </div>
+      <div class="setting-row">
+        <label>Active Project</label>
+        <button class="icon-btn" style="margin-top:4px;" id="setProject">${state.project || 'Select Project'}</button>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="saveSettings" style="width:100%; margin-bottom: 10px;">Save Settings</button>
+
+    <h2 style="font-family: var(--sans); font-size: 20px; font-weight: 700; letter-spacing: -0.015em; margin: 28px 0 8px;">Storage</h2>
+    <p style="font-size: 13px; color: var(--ink-mute); margin-bottom: 14px;">
+      ${all.length} defects stored locally on this device.
+    </p>
+    <button class="btn btn-danger" id="clearAll" style="width:100%;">Clear All Defects</button>
+
+    <p style="font-size: 11px; color: var(--ink-mute); text-align: center; margin-top: 32px;">
+      AV Inspector v1.0 · Amin Ventures
+    </p>
+  `;
+
+  $('#saveSettings').onclick = async () => {
+    await setSetting('inspector', $('#setInspector').value.trim());
+    await setSetting('email', $('#setEmail').value.trim());
+    toast('Settings saved');
+  };
+  $('#setProject').onclick = openProjectPicker;
+  $('#clearAll').onclick = async () => {
+    if (!confirm('Delete ALL defects on this device? This cannot be undone.')) return;
+    const items = await dbAll('defects');
+    for (const it of items) await dbDelete('defects', it.id);
+    toast('All defects cleared');
+    setView('list');
+  };
+}
+
+// ============================================================
+// CHECKLIST FEATURE
+// ============================================================
+
+// Checklist content — Site Prep field inspector items.
+// Pattern is ready to add Foundation, Framing, etc. in the future.
+const CHECKLIST_TEMPLATES = {
+  'site-prep': {
+    name: 'Site Prep',
+    sections: [
+      {
+        title: 'Before Work Starts',
+        blurb: 'Checks completed before the sub mobilizes.',
+        items: [
+          'Building permit posted on site',
+          "Site plan latest revision matches sub's copy",
+          'NC811 utility locates current (within 14 days)',
+          'Erosion & sediment control permit in place (if required)',
+          'Tree save plan approved (if required)',
+          'Survey corners, setbacks, easements staked',
+          'Construction entrance / tracking pad installed',
+          'Silt fence trenched and installed downhill of disturbance',
+          'Protected trees fenced at drip line',
+          'Address number visible from the street',
+          'Dumpster placed in accessible location',
+          'Port-a-john placed and serviceable',
+        ]
+      },
+      {
+        title: 'Day 1 Verification',
+        blurb: 'Walk-through with the sub on their first morning.',
+        items: [
+          'Survey stakes verified against plan',
+          'Clearing limits ribboned or paint-marked',
+          'Utility flags/paint visible and photographed',
+          'Existing condition photographed (all 4 directions)',
+          'Stockpile location identified and downhill of silt fence',
+          'Sub initials current plan revision date in writing',
+          'Foreman cell # and GC cell # exchanged',
+          'Sub acknowledges clearing limits in writing',
+        ]
+      },
+      {
+        title: 'During Active Work',
+        blurb: 'Walk the site every 48 hours and after every rain >=0.25 in.',
+        items: [
+          'Silt fence intact after most recent rain',
+          'Tracking pad functional — no mud on public road',
+          'Stockpiles covered/seeded if inactive >14 days',
+          'No clearing or grading outside flagged limits',
+          'Cut/fill within plan tolerance',
+          'Building pad subgrade tested or AHJ-verified',
+          'Water line trench below frost depth (12-18" NC piedmont)',
+          'Sewer slope verified (1/4" per foot min)',
+          'Temp power pole inspected and energized',
+          'Protected trees — no trunk or root damage',
+          'Daily cleanup completed end of day',
+          'Dust control applied during dry conditions',
+          'No off-site sediment tracking visible',
+        ]
+      }
+    ]
+  }
+};
+
+const CHECKLIST_STATUSES = ['OK', 'Follow-up', 'Not Acceptable', 'N/A'];
+const STATUS_COLORS = {
+  'OK': { bg: '#DCFCE7', text: '#166534', icon: '✓' },
+  'Follow-up': { bg: '#FEF3C7', text: '#92400E', icon: '⚠' },
+  'Not Acceptable': { bg: '#FEE2E2', text: '#991B1B', icon: '✗' },
+  'N/A': { bg: '#F5F5F4', text: '#57534E', icon: '—' },
+};
+
+// Current checklist being edited (live state)
+let activeChecklist = null;
+
+async function renderChecklist() {
+  const page = $('#page');
+  // If no active checklist, show picker/list of saved ones
+  if (!activeChecklist) {
+    const saved = await dbAll('checklists');
+    const list = state.project ? saved.filter(c => c.project === state.project) : saved;
+
+    page.innerHTML = `
+      <div class="project-bar">
+        <div class="label">Project</div>
+        <div class="value ${state.project ? '' : 'empty'}">${state.project || 'No project selected'}</div>
+      </div>
+      <h1 class="page-title">Checklists</h1>
+      <p class="page-sub">Walk through items on site. Generate a report when done.</p>
+
+      <button class="cl-start-btn" id="clStartBtn">
+        <span class="cl-start-icon">+</span>
+        <span>Start New Site Prep Checklist</span>
+      </button>
+
+      <h2 class="cl-section-title">Saved checklists</h2>
+      ${list.length === 0
+        ? `<div class="empty"><p>No saved checklists yet.</p></div>`
+        : list.map(c => renderChecklistCard(c)).join('')}
+    `;
+
+    $('#clStartBtn').onclick = () => startNewChecklist('site-prep');
+    $$('.cl-card').forEach(card => {
+      card.onclick = () => openChecklist(card.dataset.id);
+    });
+    $$('.cl-card-pdf').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        const c = await dbGet('checklists', btn.dataset.id);
+        if (c) buildChecklistPDF(c);
+      };
+    });
+    $$('.cl-card-del').forEach(btn => {
+      btn.onclick = async (e) => {
+        e.stopPropagation();
+        if (!confirm('Delete this checklist?')) return;
+        await dbDelete('checklists', btn.dataset.id);
+        renderChecklist();
+      };
+    });
+    return;
+  }
+
+  // Active checklist — show items
+  renderActiveChecklist();
+}
+
+function renderChecklistCard(c) {
+  const total = c.items.length;
+  const done = c.items.filter(i => i.status).length;
+  const bad = c.items.filter(i => i.status === 'Not Acceptable').length;
+  const followup = c.items.filter(i => i.status === 'Follow-up').length;
+  const dateStr = c.date || new Date(c.createdAt).toLocaleDateString();
+  return `
+    <div class="cl-card" data-id="${c.id}">
+      <div class="cl-card-head">
+        <div>
+          <div class="cl-card-title">${escapeHtml(c.templateName)}</div>
+          <div class="cl-card-meta">${escapeHtml(c.project || 'No project')} · ${dateStr}</div>
+        </div>
+        <div class="cl-card-progress">${done}/${total}</div>
+      </div>
+      <div class="cl-card-stats">
+        ${bad > 0 ? `<span class="cl-stat bad">${bad} not acceptable</span>` : ''}
+        ${followup > 0 ? `<span class="cl-stat warn">${followup} follow-up</span>` : ''}
+        ${(bad + followup === 0 && done > 0) ? `<span class="cl-stat ok">On track</span>` : ''}
+      </div>
+      <div class="cl-card-actions">
+        <button class="cl-card-pdf" data-id="${c.id}">PDF</button>
+        <button class="cl-card-del" data-id="${c.id}">Delete</button>
+      </div>
+    </div>`;
+}
+
+async function startNewChecklist(templateKey) {
+  const tpl = CHECKLIST_TEMPLATES[templateKey];
+  if (!tpl) return;
+  if (!state.project) {
+    if (!confirm('No project selected. Continue anyway?')) return;
+  }
+  const inspectorName = await getSetting('inspector') || '';
+  const items = [];
+  for (const section of tpl.sections) {
+    for (const itemText of section.items) {
+      items.push({
+        section: section.title,
+        text: itemText,
+        status: '',
+        notes: '',
+        dateVerified: '',
+      });
+    }
+  }
+  activeChecklist = {
+    id: uid(),
+    project: state.project || '',
+    inspector: inspectorName,
+    template: templateKey,
+    templateName: tpl.name,
+    date: new Date().toISOString().slice(0, 10),
+    items,
+    createdAt: Date.now(),
+  };
+  renderActiveChecklist();
+}
+
+async function openChecklist(id) {
+  const c = await dbGet('checklists', id);
+  if (!c) return;
+  activeChecklist = c;
+  renderActiveChecklist();
+}
+
+function renderActiveChecklist() {
+  const c = activeChecklist;
+  const tpl = CHECKLIST_TEMPLATES[c.template];
+  const done = c.items.filter(i => i.status).length;
+  const total = c.items.length;
+
+  // Group items by section
+  const sectionGroups = {};
+  for (const item of c.items) {
+    if (!sectionGroups[item.section]) sectionGroups[item.section] = [];
+    sectionGroups[item.section].push(item);
+  }
+
+  let itemsHTML = '';
+  let itemIdx = 0;
+  for (const section of tpl.sections) {
+    itemsHTML += `<div class="cl-section">
+      <h3 class="cl-section-h">${escapeHtml(section.title)}</h3>
+      <p class="cl-section-blurb">${escapeHtml(section.blurb)}</p>
+    </div>`;
+    const sectionItems = sectionGroups[section.title] || [];
+    for (const item of sectionItems) {
+      const idx = itemIdx;
+      const statusColor = item.status ? STATUS_COLORS[item.status] : null;
+      itemsHTML += `
+        <div class="cl-item" data-idx="${idx}">
+          <div class="cl-item-text">${escapeHtml(item.text)}</div>
+          <div class="cl-item-status-row">
+            ${CHECKLIST_STATUSES.map(s => `
+              <button class="cl-status-btn ${item.status === s ? 'active' : ''}"
+                      data-idx="${idx}" data-status="${s}"
+                      style="${item.status === s ? `background:${STATUS_COLORS[s].bg};color:${STATUS_COLORS[s].text};border-color:${STATUS_COLORS[s].text};` : ''}">
+                <span class="cl-status-icon">${STATUS_COLORS[s].icon}</span>
+                <span class="cl-status-label">${s}</span>
+              </button>
+            `).join('')}
+          </div>
+          ${item.notes || item.status === 'Follow-up' || item.status === 'Not Acceptable' ? `
+            <textarea class="cl-item-notes" data-idx="${idx}"
+              placeholder="Notes, measurements, follow-ups...">${escapeHtml(item.notes)}</textarea>
+          ` : ''}
+        </div>`;
+      itemIdx++;
+    }
+  }
+
+  const page = $('#page');
+  page.innerHTML = `
+    <div class="cl-header">
+      <button class="cl-back" id="clBack">← Back</button>
+      <div class="cl-progress-pill">${done}/${total}</div>
+    </div>
+    <h1 class="page-title">${escapeHtml(tpl.name)}</h1>
+
+    <div class="cl-meta-form">
+      <div class="cl-meta-row">
+        <label>Project</label>
+        <input type="text" id="clProject" value="${escapeHtml(c.project)}" placeholder="Project name" />
+      </div>
+      <div class="cl-meta-row">
+        <label>Inspector</label>
+        <input type="text" id="clInspector" value="${escapeHtml(c.inspector)}" placeholder="Inspector name" />
+      </div>
+      <div class="cl-meta-row">
+        <label>Date</label>
+        <input type="date" id="clDate" value="${c.date}" />
+      </div>
+    </div>
+
+    ${itemsHTML}
+
+    <div class="cl-actions">
+      <button class="cl-action primary" id="clSave">Save</button>
+      <button class="cl-action" id="clPDF">Generate PDF</button>
+      <button class="cl-action danger" id="clClose">Close without saving</button>
+    </div>
+  `;
+
+  // Wire status buttons
+  $$('.cl-status-btn').forEach(btn => {
+    btn.onclick = () => {
+      const idx = parseInt(btn.dataset.idx);
+      const status = btn.dataset.status;
+      // Toggle: tapping the active status clears it
+      if (activeChecklist.items[idx].status === status) {
+        activeChecklist.items[idx].status = '';
+      } else {
+        activeChecklist.items[idx].status = status;
+      }
+      renderActiveChecklist();
+    };
+  });
+
+  // Wire notes textareas
+  $$('.cl-item-notes').forEach(ta => {
+    ta.oninput = () => {
+      const idx = parseInt(ta.dataset.idx);
+      activeChecklist.items[idx].notes = ta.value;
+    };
+  });
+
+  // Meta inputs
+  $('#clProject').oninput = (e) => { activeChecklist.project = e.target.value; };
+  $('#clInspector').oninput = (e) => { activeChecklist.inspector = e.target.value; };
+  $('#clDate').oninput = (e) => { activeChecklist.date = e.target.value; };
+
+  // Action buttons
+  $('#clBack').onclick = async () => {
+    await dbPut('checklists', activeChecklist);
+    activeChecklist = null;
+    renderChecklist();
+  };
+  $('#clSave').onclick = async () => {
+    await dbPut('checklists', activeChecklist);
+    toast('Checklist saved');
+  };
+  $('#clPDF').onclick = async () => {
+    await dbPut('checklists', activeChecklist);
+    buildChecklistPDF(activeChecklist);
+  };
+  $('#clClose').onclick = () => {
+    if (!confirm('Close without saving changes?')) return;
+    activeChecklist = null;
+    renderChecklist();
+  };
+}
+
+async function buildChecklistPDF(c) {
+  const { jsPDF } = window.jspdf;
+  const pdf = new jsPDF({ unit: 'pt', format: 'letter' });
+  const pw = pdf.internal.pageSize.getWidth();
+  const ph = pdf.internal.pageSize.getHeight();
+  const M = 40;
+
+  let y = M;
+
+  // Header bar
+  pdf.setFillColor(2, 6, 23);
+  pdf.rect(0, 0, pw, 56, 'F');
+  // Logo
+  try {
+    pdf.addImage(AV_LOGO_DATA_URL, 'JPEG', M, 8, 40, 40);
+  } catch (e) {}
+  pdf.setFontSize(11);
+  pdf.setTextColor(245, 240, 230);
+  pdf.text('AMIN VENTURES · Builder Toolkit', M + 50, 24);
+  pdf.setFontSize(9);
+  pdf.setTextColor(180, 170, 150);
+  pdf.text(`${c.templateName} Field Checklist`, M + 50, 38);
+
+  y = 80;
+
+  // Title
+  pdf.setFontSize(22);
+  pdf.setTextColor(2, 6, 23);
+  pdf.text(`${c.templateName} Field Checklist`, M, y);
+  y += 18;
+
+  pdf.setFontSize(10);
+  pdf.setTextColor(138, 130, 112);
+  pdf.text('Day-to-day site verification', M, y);
+  y += 24;
+
+  // Project info block
+  const infoLeft = [
+    ['PROJECT', c.project || '—'],
+    ['INSPECTOR', c.inspector || '—'],
+    ['DATE', c.date || '—'],
+  ];
+  pdf.setFontSize(8);
+  let infoY = y;
+  for (const [label, value] of infoLeft) {
+    pdf.setTextColor(138, 130, 112);
+    pdf.setFontSize(8);
+    pdf.text(label, M, infoY);
+    pdf.setTextColor(2, 6, 23);
+    pdf.setFontSize(11);
+    pdf.text(String(value), M + 80, infoY);
+    infoY += 16;
+  }
+  y = infoY + 12;
+
+  // Summary stats
+  const stats = {
+    'OK': c.items.filter(i => i.status === 'OK').length,
+    'Follow-up': c.items.filter(i => i.status === 'Follow-up').length,
+    'Not Acceptable': c.items.filter(i => i.status === 'Not Acceptable').length,
+    'N/A': c.items.filter(i => i.status === 'N/A').length,
+    'Not Started': c.items.filter(i => !i.status).length,
+  };
+  pdf.setFontSize(9);
+  pdf.setTextColor(138, 130, 112);
+  pdf.text('STATUS SUMMARY', M, y);
+  y += 12;
+  pdf.setFontSize(10);
+  let statsX = M;
+  for (const [label, count] of Object.entries(stats)) {
+    if (count === 0) continue;
+    const color = STATUS_COLORS[label] || { bg: '#F5F5F4', text: '#57534E' };
+    const bgRGB = hexToRGB(color.bg);
+    const txtRGB = hexToRGB(color.text);
+    const txt = `${count} ${label}`;
+    const txtW = pdf.getTextWidth(txt) + 12;
+    pdf.setFillColor(...bgRGB);
+    pdf.roundedRect(statsX, y - 9, txtW, 16, 4, 4, 'F');
+    pdf.setTextColor(...txtRGB);
+    pdf.text(txt, statsX + 6, y + 2);
+    statsX += txtW + 6;
+  }
+  y += 22;
+
+  // Divider
+  pdf.setDrawColor(228, 220, 203);
+  pdf.line(M, y, pw - M, y);
+  y += 14;
+
+  // Group items by section
+  const tpl = CHECKLIST_TEMPLATES[c.template];
+  const sectionGroups = {};
+  for (const item of c.items) {
+    if (!sectionGroups[item.section]) sectionGroups[item.section] = [];
+    sectionGroups[item.section].push(item);
+  }
+
+  pdf.setFontSize(10);
+
+  for (const section of tpl.sections) {
+    // New page if not enough space for section header + 1 item
+    if (y > ph - 100) { pdf.addPage(); y = M + 20; }
+
+    // Section title
+    pdf.setFontSize(13);
+    pdf.setTextColor(2, 6, 23);
+    pdf.text(section.title, M, y);
+    y += 14;
+    pdf.setFontSize(9);
+    pdf.setTextColor(138, 130, 112);
+    pdf.text(section.blurb, M, y);
+    y += 16;
+
+    const items = sectionGroups[section.title] || [];
+    for (const item of items) {
+      // Estimate space needed (text + status + notes)
+      const itemTextLines = pdf.splitTextToSize(item.text, pw - M * 2 - 100);
+      const notesLines = item.notes ? pdf.splitTextToSize(item.notes, pw - M * 2 - 20) : [];
+      const itemHeight = 12 + itemTextLines.length * 12 + (notesLines.length > 0 ? 8 + notesLines.length * 11 : 0) + 10;
+
+      if (y + itemHeight > ph - 50) { pdf.addPage(); y = M + 20; }
+
+      // Item text
+      pdf.setFontSize(11);
+      pdf.setTextColor(2, 6, 23);
+      pdf.text(itemTextLines, M, y);
+      const itemTextEndY = y + (itemTextLines.length - 1) * 12;
+
+      // Status pill on right
+      if (item.status) {
+        const color = STATUS_COLORS[item.status];
+        const bgRGB = hexToRGB(color.bg);
+        const txtRGB = hexToRGB(color.text);
+        const pillText = `${color.icon} ${item.status}`;
+        const pillW = pdf.getTextWidth(pillText) + 14;
+        pdf.setFillColor(...bgRGB);
+        pdf.roundedRect(pw - M - pillW, y - 9, pillW, 16, 4, 4, 'F');
+        pdf.setFontSize(9);
+        pdf.setTextColor(...txtRGB);
+        pdf.text(pillText, pw - M - pillW + 7, y + 2);
+      } else {
+        pdf.setFontSize(9);
+        pdf.setTextColor(180, 170, 150);
+        pdf.text('— not checked —', pw - M - 80, y + 2);
+      }
+
+      y = itemTextEndY + 16;
+
+      // Notes if any
+      if (notesLines.length > 0) {
+        pdf.setFontSize(9);
+        pdf.setTextColor(74, 69, 56);
+        pdf.text('Notes:', M + 10, y);
+        y += 11;
+        pdf.text(notesLines, M + 10, y);
+        y += notesLines.length * 11 + 6;
+      }
+
+      // Item divider
+      pdf.setDrawColor(228, 220, 203);
+      pdf.line(M, y, pw - M, y);
+      y += 10;
+    }
+    y += 10;
+  }
+
+  // Sign-off block
+  if (y > ph - 120) { pdf.addPage(); y = M + 20; }
+  pdf.setFontSize(13);
+  pdf.setTextColor(2, 6, 23);
+  pdf.text('Sign-off', M, y);
+  y += 22;
+
+  // Two signature lines
+  const sigW = (pw - M * 2 - 20) / 2;
+  pdf.setDrawColor(2, 6, 23);
+  pdf.line(M, y + 20, M + sigW, y + 20);
+  pdf.line(M + sigW + 20, y + 20, pw - M, y + 20);
+  pdf.setFontSize(8);
+  pdf.setTextColor(138, 130, 112);
+  pdf.text('Inspector', M, y + 32);
+  pdf.text('Foreman / sub representative', M + sigW + 20, y + 32);
+
+  // Footer on every page
+  const pageCount = pdf.internal.getNumberOfPages();
+  for (let p = 1; p <= pageCount; p++) {
+    pdf.setPage(p);
+    pdf.setFontSize(7);
+    pdf.setTextColor(138, 130, 112);
+    pdf.text('Amin Ventures · Field Checklist Report', M, ph - 20);
+    pdf.text(`Page ${p} of ${pageCount}`, pw - M, ph - 20, { align: 'right' });
+  }
+
+  // Save
+  const filename = `${c.templateName.replace(/\s+/g, '-')}-${(c.project || 'project').replace(/[^a-z0-9]/gi, '-')}-${c.date}.pdf`;
+  pdf.save(filename);
+}
+
+function hexToRGB(hex) {
+  hex = hex.replace('#', '');
+  return [parseInt(hex.slice(0, 2), 16), parseInt(hex.slice(2, 4), 16), parseInt(hex.slice(4, 6), 16)];
+}
+
+function setView(v) {
+  state.view = v;
+  $$('.botnav .nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === v));
+  if (v === 'list') renderList();
+  if (v === 'checklist') renderChecklist();
+  if (v === 'report') renderReport();
+  if (v === 'settings') renderSettings();
+}
+
+// ---------- Project picker ----------
+async function openProjectPicker() {
+  const all = await dbAll('defects');
+  const recents = [...new Set(all.map(d => d.project).filter(Boolean))].slice(-8).reverse();
+  $('#projectInput').value = state.project || '';
+  $('#recentProjects').innerHTML = recents.length === 0
+    ? `<p style="font-size: 13px; color: var(--ink-mute);">No recent projects yet.</p>`
+    : recents.map(p => `
+        <button class="seg-btn" data-pname="${escapeHtml(p)}" style="text-align:left;">${escapeHtml(p)}</button>
+      `).join('');
+  $$('#recentProjects [data-pname]').forEach(b => {
+    b.onclick = () => { $('#projectInput').value = b.dataset.pname; };
+  });
+  $('#projectSheet').classList.add('show');
+}
+
+$('#btnSetProject').onclick = async () => {
+  const v = $('#projectInput').value.trim();
+  if (!v) { toast('Enter a project name'); return; }
+  state.project = v;
+  await setSetting('lastProject', v);
+  $('#projectSheet').classList.remove('show');
+  setView(state.view);
+};
+
+// ---------- Defect form ----------
+// Quick picks behave as toggles: tap = add line to description; tap again = remove line.
+// We detect which picks are currently in the description by exact-line match.
+function getActivePicks() {
+  const text = $('#dDesc').value || '';
+  return new Set(text.split('\n').map(l => l.trim()).filter(Boolean));
+}
+
+function renderQuickPicks() {
+  const trade = $('#dTrade').value;
+  const picks = trade && QUICK_PICKS_BY_TRADE[trade] ? QUICK_PICKS_BY_TRADE[trade] : QUICK_PICKS_DEFAULT;
+  const active = getActivePicks();
+  $('#quickPick').innerHTML = picks.map(p => {
+    const isActive = active.has(p);
+    return `<button type="button" class="${isActive ? 'active' : ''}" data-pick="${escapeHtml(p)}">${isActive ? '✓ ' : ''}${escapeHtml(p)}</button>`;
+  }).join('');
+  $$('#quickPick button').forEach(b => {
+    b.onclick = () => togglePick(b.dataset.pick);
+  });
+}
+
+function togglePick(pick) {
+  const ta = $('#dDesc');
+  const lines = (ta.value || '').split('\n');
+  const idx = lines.findIndex(l => l.trim() === pick);
+  if (idx >= 0) {
+    // Remove this line
+    lines.splice(idx, 1);
+  } else {
+    // Append on its own line. Strip empty trailing lines first.
+    while (lines.length && !lines[lines.length - 1].trim()) lines.pop();
+    lines.push(pick);
+  }
+  ta.value = lines.join('\n').replace(/\n{3,}/g, '\n\n');
+  renderQuickPicks();
+}
+
+async function openDefectForm(id) {
+  state.editingId = id || null;
+  state.photos = [];
+  state.voices = [];
+
+  $('#defectSheetTitle').textContent = id ? 'Edit Defect' : 'New Defect';
+  $('#btnDelete').style.display = id ? 'block' : 'none';
+
+  if (id) {
+    const d = await dbGet('defects', id);
+    if (d) {
+      $('#dLocation').value = d.location || '';
+      $('#dTrade').value = d.trade || '';
+      $('#dStatus').value = d.status || 'Open';
+      $('#dDesc').value = d.description || '';
+      $('#dResp').value = d.responsible || '';
+      $('#dDue').value = d.dueDate || '';
+      state.photos = (d.photos || []).map(p => ({ ...p }));
+      state.voices = (d.voices || []).map(v => ({ ...v }));
+    }
+  } else {
+    $('#dLocation').value = '';
+    $('#dTrade').value = '';
+    $('#dStatus').value = 'Open';
+    $('#dDesc').value = '';
+    $('#dResp').value = '';
+    $('#dDue').value = '';
+  }
+
+  // Render quick-picks based on the (possibly just-loaded) trade
+  renderQuickPicks();
+
+  renderPhotoGrid();
+  renderVoiceList();
+  $('#defectSheet').classList.add('show');
+}
+
+// Swap quick-picks live whenever trade changes; also re-render to refresh active state when textarea is edited
+$('#dTrade').addEventListener('change', renderQuickPicks);
+$('#dDesc').addEventListener('input', renderQuickPicks);
+
+function renderPhotoGrid() {
+  const grid = $('#photoGrid');
+  grid.innerHTML = state.photos.map((p, i) => {
+    const dims = (p.width && p.height) ? `${p.width}×${p.height}` : 'no dims';
+    return `
+    <div class="photo-cell" data-idx="${i}">
+      <img src="${p.dataUrl}" alt="" />
+      <div class="dim-badge">${dims}</div>
+      ${p.annotated ? `<div class="annotated-badge">Marked</div>` : ''}
+      <button class="remove" data-rm="${i}">×</button>
+    </div>
+  `;
+  }).join('') + `<div class="photo-cell add" id="addPhoto">+ Photo</div>`;
+
+  $('#addPhoto').onclick = () => openPhotoChooser();
+  $$('#photoGrid [data-rm]').forEach(b => {
+    b.onclick = (e) => {
+      e.stopPropagation();
+      state.photos.splice(Number(b.dataset.rm), 1);
+      renderPhotoGrid();
+    };
+  });
+  $$('#photoGrid .photo-cell[data-idx]').forEach(c => {
+    c.onclick = () => openAnnotate(Number(c.dataset.idx));
+  });
+
+  renderPhotoCaptions();
+}
+
+function renderPhotoCaptions() {
+  const wrap = $('#photoCaptions');
+  if (state.photos.length === 0) { wrap.innerHTML = ''; return; }
+  wrap.innerHTML = state.photos.map((p, i) => `
+    <div class="photo-caption-row">
+      <img class="photo-caption-thumb" src="${p.dataUrl}" alt="" />
+      <div class="photo-caption-body">
+        <span class="photo-caption-label">Photo ${i + 1} description</span>
+        <textarea class="photo-caption-input" data-cap="${i}" rows="2"
+          placeholder="What does this photo show? (optional)">${escapeHtml(p.caption || '')}</textarea>
+      </div>
+    </div>
+  `).join('');
+  $$('#photoCaptions [data-cap]').forEach(t => {
+    t.oninput = () => {
+      const idx = Number(t.dataset.cap);
+      if (state.photos[idx]) state.photos[idx].caption = t.value;
+    };
+  });
+}
+
+function openPhotoChooser() {
+  $('#photoChooser').classList.add('show');
+}
+
+async function handlePhotoFiles(files) {
+  for (const f of files) {
+    try {
+      const { blob, dataUrl, orientation, width, height } = await compressImage(f);
+      state.photos.push({
+        id: uid(), blob, dataUrl, orientation,
+        width, height,
+        annotated: false,
+      });
+    } catch (err) {
+      console.error('photo compress failed', err);
+    }
+  }
+  renderPhotoGrid();
+}
+
+$('#photoInputCamera').onchange = async (e) => {
+  const files = Array.from(e.target.files || []);
+  await handlePhotoFiles(files);
+  e.target.value = '';
+};
+$('#photoInputGallery').onchange = async (e) => {
+  const files = Array.from(e.target.files || []);
+  await handlePhotoFiles(files);
+  e.target.value = '';
+};
+$('#chooseCamera').onclick = () => {
+  $('#photoChooser').classList.remove('show');
+  $('#photoInputCamera').click();
+};
+$('#chooseGallery').onclick = () => {
+  $('#photoChooser').classList.remove('show');
+  $('#photoInputGallery').click();
+};
+
+// ---------- Annotation ----------
+const annoState = { ctx: null, color: '#ef4444', strokes: [], idx: -1, base: null };
+
+function openAnnotate(idx) {
+  annoState.idx = idx;
+  annoState.strokes = [];
+  annoState.color = '#ef4444';
+  $$('#annotateOverlay .color-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === 0);
+  });
+
+  const img = new Image();
+  img.onload = () => {
+    annoState.base = img;
+    const canvas = $('#annotateCanvas');
+    const wrap = canvas.parentElement;
+    const maxW = wrap.clientWidth;
+    const maxH = wrap.clientHeight;
+    const scale = Math.min(maxW / img.width, maxH / img.height, 1);
+    canvas.width = img.width;
+    canvas.height = img.height;
+    canvas.style.width = (img.width * scale) + 'px';
+    canvas.style.height = (img.height * scale) + 'px';
+    annoState.ctx = canvas.getContext('2d');
+    redrawAnno();
+  };
+  img.src = state.photos[idx].dataUrl;
+
+  $('#annotateOverlay').classList.add('show');
+}
+
+function redrawAnno() {
+  const ctx = annoState.ctx;
+  const canvas = $('#annotateCanvas');
+  ctx.drawImage(annoState.base, 0, 0);
+  for (const stroke of annoState.strokes) {
+    ctx.strokeStyle = stroke.color;
+    ctx.lineWidth = Math.max(canvas.width / 200, 4);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.beginPath();
+    stroke.points.forEach((p, i) => {
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+    ctx.stroke();
+  }
+}
+
+(function setupAnnoCanvas() {
+  const canvas = $('#annotateCanvas');
+  let drawing = false;
+  let current = null;
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    const x = ((e.touches ? e.touches[0].clientX : e.clientX) - r.left) * (canvas.width / r.width);
+    const y = ((e.touches ? e.touches[0].clientY : e.clientY) - r.top) * (canvas.height / r.height);
+    return { x, y };
+  }
+
+  function start(e) {
+    e.preventDefault();
+    drawing = true;
+    current = { color: annoState.color, points: [pos(e)] };
+    annoState.strokes.push(current);
+    redrawAnno();
+  }
+  function move(e) {
+    if (!drawing) return;
+    e.preventDefault();
+    current.points.push(pos(e));
+    redrawAnno();
+  }
+  function end() { drawing = false; current = null; }
+
+  canvas.addEventListener('mousedown', start);
+  canvas.addEventListener('mousemove', move);
+  canvas.addEventListener('mouseup', end);
+  canvas.addEventListener('touchstart', start, { passive: false });
+  canvas.addEventListener('touchmove', move, { passive: false });
+  canvas.addEventListener('touchend', end);
+})();
+
+$$('#annotateOverlay .color-dot').forEach(d => {
+  d.onclick = () => {
+    $$('#annotateOverlay .color-dot').forEach(x => x.classList.remove('active'));
+    d.classList.add('active');
+    annoState.color = d.dataset.color;
+  };
+});
+$('#annoUndo').onclick = () => { annoState.strokes.pop(); redrawAnno(); };
+$('#annoCancel').onclick = () => $('#annotateOverlay').classList.remove('show');
+$('#annoSave').onclick = async () => {
+  const canvas = $('#annotateCanvas');
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+  const blob = await (await fetch(dataUrl)).blob();
+  state.photos[annoState.idx] = {
+    ...state.photos[annoState.idx],
+    blob, dataUrl, annotated: annoState.strokes.length > 0
+  };
+  $('#annotateOverlay').classList.remove('show');
+  renderPhotoGrid();
+};
+
+// ---------- Voice recorder ----------
+$('#recBtn').onclick = async () => {
+  if (state.rec.mediaRec && state.rec.mediaRec.state === 'recording') {
+    stopRecording();
+  } else {
+    await startRecording();
+  }
+};
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mr = new MediaRecorder(stream);
+    state.rec.mediaRec = mr;
+    state.rec.chunks = [];
+    state.rec.startedAt = Date.now();
+
+    mr.ondataavailable = (e) => state.rec.chunks.push(e.data);
+    mr.onstop = async () => {
+      const blob = new Blob(state.rec.chunks, { type: 'audio/webm' });
+      const dataUrl = await blobToDataUrl(blob);
+      const durationSec = Math.round((Date.now() - state.rec.startedAt) / 1000);
+      state.voices.push({ id: uid(), blob, dataUrl, durationSec });
+      stream.getTracks().forEach(t => t.stop());
+      renderVoiceList();
+      $('#recBtn').classList.remove('recording');
+      $('#recStatus').textContent = 'Tap to record';
+      $('#recTime').style.display = 'none';
+      clearInterval(state.rec.timer);
+    };
+
+    mr.start();
+    $('#recBtn').classList.add('recording');
+    $('#recStatus').textContent = 'Recording…';
+    $('#recTime').style.display = 'block';
+    state.rec.timer = setInterval(() => {
+      const sec = Math.floor((Date.now() - state.rec.startedAt) / 1000);
+      const m = String(Math.floor(sec / 60)).padStart(2, '0');
+      const s = String(sec % 60).padStart(2, '0');
+      $('#recTime').textContent = `${m}:${s}`;
+    }, 200);
+  } catch (err) {
+    toast('Microphone access denied');
+    console.error(err);
+  }
+}
+
+function stopRecording() {
+  if (state.rec.mediaRec) state.rec.mediaRec.stop();
+}
+
+function renderVoiceList() {
+  $('#voiceList').innerHTML = state.voices.map((v, i) => `
+    <div class="voice-item">
+      <button data-play="${i}">▶</button>
+      <span>Voice note ${i + 1} · ${v.durationSec}s</span>
+      <button class="del" data-rmv="${i}">×</button>
+    </div>
+  `).join('');
+  $$('#voiceList [data-play]').forEach(b => {
+    b.onclick = () => {
+      const audio = new Audio(state.voices[Number(b.dataset.play)].dataUrl);
+      audio.play();
+    };
+  });
+  $$('#voiceList [data-rmv]').forEach(b => {
+    b.onclick = () => {
+      state.voices.splice(Number(b.dataset.rmv), 1);
+      renderVoiceList();
+    };
+  });
+}
+
+// ---------- Save defect ----------
+$('#btnSave').onclick = async () => {
+  const desc = $('#dDesc').value.trim();
+  if (!desc) { toast('Enter a description'); return; }
+  if (!state.project) { toast('Select a project first'); openProjectPicker(); return; }
+
+  const gps = await getGPS();
+
+  const defect = {
+    id: state.editingId || uid(),
+    project: state.project,
+    location: $('#dLocation').value.trim(),
+    trade: $('#dTrade').value,
+    description: desc,
+    responsible: $('#dResp').value.trim(),
+    dueDate: $('#dDue').value,
+    photos: state.photos,
+    voices: state.voices,
+    gps,
+    status: $('#dStatus').value || 'Open',
+    createdAt: state.editingId ? (await dbGet('defects', state.editingId))?.createdAt || new Date().toISOString() : new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  await dbPut('defects', defect);
+  $('#defectSheet').classList.remove('show');
+  toast(state.editingId ? 'Defect updated' : 'Defect saved');
+  state.editingId = null;
+  renderList();
+};
+
+$('#btnDelete').onclick = async () => {
+  if (!state.editingId) return;
+  if (!confirm('Delete this defect?')) return;
+  await dbDelete('defects', state.editingId);
+  $('#defectSheet').classList.remove('show');
+  state.editingId = null;
+  toast('Defect deleted');
+  renderList();
+};
+
+// ---------- PDF ----------
+async function buildPDF(defects, inspectorName) {
+  const { jsPDF } = window.jspdf;
+
+  // Default portrait letter; we'll set per-page orientation when adding pages.
+  const pdf = new jsPDF({ unit: 'pt', format: 'letter', orientation: 'portrait' });
+  const M = 48;
+  const HEADER_H = 52;
+
+  // ---- Brand header drawn on every page ----
+  function drawBrandHeader(page, w, projectName) {
+    page.setFillColor(2, 6, 23);
+    page.rect(0, 0, w, HEADER_H, 'F');
+
+    // Real Amin Ventures logo (square, mark + wordmark on black bg)
+    const logoSize = 40;
+    const logoX = M;
+    const logoY = 6;
+    try {
+      page.addImage(AV_LOGO_DATA_URL, 'JPEG', logoX, logoY, logoSize, logoSize, undefined, 'FAST');
+    } catch (e) {
+      page.setDrawColor(245, 240, 230);
+      page.setLineWidth(1.6);
+      page.line(logoX, logoY + 32 * 0.20, logoX, logoY + 32);
+      page.line(logoX, logoY + 32 * 0.20, logoX + 16, logoY);
+      page.line(logoX + 16, logoY, logoX + 16, logoY + 32);
+    }
+
+    // Right side: project name + date
+    if (projectName) {
+      page.setTextColor(180, 170, 150);
+      page.setFont('helvetica', 'normal');
+      page.setFontSize(8);
+      page.text(`PROJECT · ${String(projectName).toUpperCase()}`, w - M, 24, { align: 'right' });
+      page.setTextColor(245, 240, 230);
+      page.setFontSize(10);
+      page.setFont('helvetica', 'bold');
+      page.text(new Date().toLocaleDateString(), w - M, 40, { align: 'right' });
+    }
+  }
+
+  function drawFooter(page, w, h, label) {
+    page.setTextColor(160, 150, 130);
+    page.setFont('helvetica', 'normal');
+    page.setFontSize(7);
+    page.text(label || 'Amin Ventures · Field Inspection Report', M, h - 14);
+    const pageNum = page.internal.getCurrentPageInfo().pageNumber;
+    page.text(`Page ${pageNum}`, w - M, h - 14, { align: 'right' });
+  }
+
+  // Build a flat list: one entry per photo. Defects with no photos still
+  // get one info-only page so nothing is lost.
+  const photoPages = [];
+  let defectIndex = 0;
+  for (const d of defects) {
+    defectIndex++;
+    const photos = d.photos || [];
+    if (photos.length === 0) {
+      photoPages.push({ d, photo: null, defectIndex, photoIdx: 0, photoTotal: 0 });
+    } else {
+      photos.forEach((p, i) => {
+        photoPages.push({ d, photo: p, defectIndex, photoIdx: i, photoTotal: photos.length });
+      });
+    }
+  }
+
+  // Render each entry as its own page. Pages are always portrait; the photo
+  // is fitted (with its real aspect ratio preserved) into the available zone.
+  let firstPage = true;
+  for (const entry of photoPages) {
+    const { d, photo, defectIndex, photoIdx, photoTotal } = entry;
+
+    if (firstPage) {
+      // jsPDF already created a portrait page 1 — use it
+      firstPage = false;
+    } else {
+      pdf.addPage('letter', 'portrait');
+    }
+
+    const pw = 612;   // letter portrait width
+    const ph = 792;   // letter portrait height
+
+    drawBrandHeader(pdf, pw, d.project || state.project);
+
+    // ----- Layout zones -----
+    // Header band: 0 — HEADER_H
+    // Photo zone: HEADER_H + 16 ... ph - META_BLOCK_H - 16
+    // Meta block: bottom of page
+    const META_BLOCK_H = 150;
+    const photoTop = HEADER_H + 16;
+    const photoBottom = ph - META_BLOCK_H - 12;
+    const photoLeft = M;
+    const photoRight = pw - M;
+    const availableW = photoRight - photoLeft;
+    const availableH = photoBottom - photoTop;
+
+    // ----- Photo (if present) -----
+    if (photo) {
+      let imgW = photo.width;
+      let imgH = photo.height;
+      if (!imgW || !imgH) {
+        try {
+          const im = new Image();
+          im.src = photo.dataUrl;
+          if (im.decode) {
+            await im.decode();
+          } else {
+            await new Promise((resolve, reject) => {
+              im.onload = resolve;
+              im.onerror = reject;
+              if (im.complete && im.naturalWidth > 0) resolve();
+            });
+          }
+          imgW = im.naturalWidth || im.width;
+          imgH = im.naturalHeight || im.height;
+          if (imgW && imgH) {
+            photo.width = imgW;
+            photo.height = imgH;
+          }
+        } catch (e) {
+          // Last-resort fallback if measurement fails
+        }
+        if (!imgW || !imgH) {
+          imgW = 1500;
+          imgH = 1500;
+        }
+      }
+      const aspect = imgW / imgH;
+      let drawW, drawH;
+      if (availableW / availableH > aspect) {
+        drawH = availableH;
+        drawW = drawH * aspect;
+      } else {
+        drawW = availableW;
+        drawH = drawW / aspect;
+      }
+      const drawX = photoLeft + (availableW - drawW) / 2;
+      const drawY = photoTop + (availableH - drawH) / 2;
+
+      try {
+        pdf.addImage(photo.dataUrl, 'JPEG', drawX, drawY, drawW, drawH, undefined, 'FAST');
+      } catch (e) {
+        console.error('photo page image fail', e);
+      }
+
+      if (photo.annotated) {
+        pdf.setFillColor(22, 101, 52);
+        pdf.roundedRect(drawX + 8, drawY + 8, 70, 18, 4, 4, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setFontSize(8);
+        pdf.text('MARKED UP', drawX + 43, drawY + 20, { align: 'center' });
+      }
+    } else {
+      // No photo: just an info card centered in the photo zone
+      pdf.setFillColor(245, 240, 230);
+      pdf.roundedRect(photoLeft + availableW * 0.15, photoTop + availableH * 0.30,
+                       availableW * 0.70, availableH * 0.40, 12, 12, 'F');
+      pdf.setTextColor(120, 110, 90);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(10);
+      pdf.text('(No photo attached for this entry)', pw / 2, photoTop + availableH * 0.55, { align: 'center' });
+    }
+
+    // ----- Bottom metadata block -----
+    const blockY = ph - META_BLOCK_H;
+    pdf.setFillColor(245, 240, 230);
+    pdf.rect(0, blockY, pw, META_BLOCK_H, 'F');
+    pdf.setDrawColor(228, 220, 203);
+    pdf.setLineWidth(0.5);
+    pdf.line(0, blockY, pw, blockY);
+
+    // Top row: DEFECT 001 · PHOTO 2 OF 4 on the left, STATUS on right
+    pdf.setTextColor(120, 110, 90);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setFontSize(8);
+    const indicator = photoTotal > 0
+      ? `DEFECT ${String(defectIndex).padStart(3, '0')}  ·  PHOTO ${photoIdx + 1} OF ${photoTotal}`
+      : `DEFECT ${String(defectIndex).padStart(3, '0')}`;
+    pdf.text(indicator, M, blockY + 18);
+
+    // Status pill on right
+    const status = d.status || 'Open';
+    const stColor = status === 'Closed' ? [6, 95, 70]
+      : status === 'Final Punch List' ? [157, 23, 77]
+      : status === 'In Progress' ? [146, 64, 14]
+      : [55, 48, 163];
+    pdf.setFillColor(...stColor);
+    const stText = status.toUpperCase();
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(8);
+    const stWidth = pdf.getTextWidth(stText) + 18;
+    pdf.roundedRect(pw - M - stWidth, blockY + 8, stWidth, 16, 8, 8, 'F');
+    pdf.setTextColor(255, 255, 255);
+    pdf.text(stText, pw - M - stWidth / 2, blockY + 18, { align: 'center' });
+
+    // Description (large, bold)
+    const rawCaption = (photo && photo.caption && photo.caption.trim())
+      ? photo.caption.trim()
+      : (d.description || 'Untitled');
+    const flatCaption = rawCaption.replace(/[\r\n\t]+/g, ' · ').replace(/\s+/g, ' ').trim();
+    pdf.setTextColor(2, 6, 23);
+    pdf.setFont('helvetica', 'bold');
+    pdf.setFontSize(14);
+    const titleLines = pdf.splitTextToSize(flatCaption, pw - 2 * M);
+    pdf.text(titleLines.slice(0, 2), M, blockY + 42);
+
+    // Three-column meta row: LOCATION  ·  TRADE  ·  RESPONSIBLE
+    const colY = blockY + 86;
+    const colW = (pw - 2 * M) / 3;
+    const drawMeta = (label, value, x) => {
+      pdf.setTextColor(120, 110, 90);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+      pdf.text(label.toUpperCase(), x, colY);
+      pdf.setTextColor(2, 6, 23);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(11);
+      const vLines = pdf.splitTextToSize(String(value || '—'), colW - 14);
+      pdf.text(vLines.slice(0, 2), x, colY + 14);
+    };
+    drawMeta('Location', d.location || '—', M);
+    drawMeta('Trade', d.trade || '—', M + colW);
+    drawMeta('Responsible', d.responsible || '—', M + colW * 2);
+
+    drawFooter(pdf, pw, ph,
+      `Amin Ventures · ${state.project || 'Field Inspection'} · ${inspectorName || ''}`.trim());
+  }
+
+  return pdf;
+}
+
+// ---------- Email ----------
+async function sendEmail(defects, inspectorName, recipient) {
+  toast('Generating PDF…');
+  const pdf = await buildPDF(defects, inspectorName);
+  const filename = `punchlist-${(state.project || 'report').replace(/\s+/g,'_')}-${Date.now()}.pdf`;
+
+  // Save the PDF locally so the inspector has a copy
+  pdf.save(filename);
+
+  const subject = `Punch List — ${state.project || 'Inspection'} — ${new Date().toLocaleDateString()}`;
+  const body = `Hello,
+
+Attached is the punch list report for ${state.project || 'the project'}.
+
+Summary:
+• Total defects: ${defects.length}
+• Open: ${defects.filter(d => (d.status || 'Open') === 'Open').length}
+• In Progress: ${defects.filter(d => d.status === 'In Progress').length}
+• Final Punch List: ${defects.filter(d => d.status === 'Final Punch List').length}
+• Closed: ${defects.filter(d => d.status === 'Closed').length}
+
+Inspector: ${inspectorName || '—'}
+Date: ${new Date().toLocaleString()}
+
+** Important: The PDF was downloaded to this device. Please attach "${filename}" from your Downloads folder before sending.
+
+Generated by AV Inspector.`;
+
+  // mailto: cannot attach files (browser security). The PDF is saved to Downloads;
+  // the user attaches it manually. This is the only reliable, offline-first path.
+  const mailto = `mailto:${encodeURIComponent(recipient)}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+
+  setTimeout(() => {
+    toast('PDF saved to Downloads — attach it to the email');
+  }, 1500);
+}
+
+// ---------- Wire up ----------
+$('#fab').onclick = async () => {
+  if (!state.project) {
+    toast('Select a project first');
+    openProjectPicker();
+    return;
+  }
+  openDefectForm(null);
+};
+
+$$('.botnav .nav-item').forEach(b => {
+  b.onclick = () => setView(b.dataset.view);
+});
+
+$$('[data-close]').forEach(b => {
+  b.onclick = (e) => {
+    e.target.closest('.sheet-back').classList.remove('show');
+  };
+});
+
+// Click outside sheet to close
+$$('.sheet-back').forEach(s => {
+  s.addEventListener('click', (e) => {
+    if (e.target === s) s.classList.remove('show');
+  });
+});
+
+// ---------- Boot ----------
+(async function init() {
+  await openDB();
+  state.project = await getSetting('lastProject', null);
+  updateSync();
+  setView('list');
+
+  // Register service worker
+  if ('serviceWorker' in navigator) {
+    try {
+      await navigator.serviceWorker.register('./sw.js');
+    } catch (e) { console.warn('SW register failed', e); }
+  }
+})();
+</script>
+
+</body>
+</html>
